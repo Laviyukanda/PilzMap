@@ -213,16 +213,66 @@ map.on('click', function(e) {
         });
 });
 
-// === 6. Eigene Fundstellen markieren (Rechtsklick) ===
+// === 6. Supabase (Cloud-Datenbank) initialisieren ===
+const supabaseUrl = 'https://htaftyhatzvvdtatmapk.supabase.co';
+const supabaseKey = 'sb_publishable_uV0gGE5DEujJncxSoXcCug_B9SM4VXR';
+const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+// === 6.1. Hilfsfunktion: Pilz in die Cloud senden ===
+async function speicherePilzInCloud(lat, lng, notiz) {
+    const { data, error } = await _supabase
+        .from('pilze')
+        .insert([
+            { lat: lat, lng: lng, notiz: notiz }
+        ]);
+
+    if (error) {
+        console.error("Fehler beim Speichern in der Cloud:", error);
+        alert("Oh nein, der Pilz konnte nicht gespeichert werden!");
+    } else {
+        console.log("Erfolgreich in der Cloud gespeichert!");
+    }
+}
+
+// === 6.2. Eigene Fundstellen markieren (Rechtsklick / Langer Fingerdruck) ===
 map.on('contextmenu', function(e) {
     const notiz = prompt("🍄 Pilz gefunden! Was hast du hier entdeckt?");
     if (notiz) {
+        // 1. Marker sofort auf der Karte anzeigen
         L.marker(e.latlng)
             .addTo(fundstellenLayer)
             .bindPopup(`🎒 <b>Meine Fundstelle:</b><br>${notiz}`)
             .openPopup();
+        
+        // 2. Daten an Supabase im Hintergrund senden
+        speicherePilzInCloud(e.latlng.lat, e.latlng.lng, notiz);
     }
 });
+
+// === 6.3. Gespeicherte Pilze beim Starten live aus der Cloud laden ===
+async function ladePilzeAusCloud() {
+    const { data, error } = await _supabase
+        .from('pilze')
+        .select('*');
+
+    if (error) {
+        console.error("Fehler beim Laden der Pilze:", error);
+        return;
+    }
+
+    if (data) {
+        // Wir gehen jeden gefundenen Pilz aus der Datenbank durch
+        data.forEach(function(pilz) {
+            L.marker([pilz.lat, pilz.lng])
+                .addTo(fundstellenLayer)
+                .bindPopup(`🎒 <b>Meine Fundstelle:</b><br>${pilz.notiz}`);
+        });
+        console.log(`${data.length} Pilze aus der Cloud geladen!`);
+    }
+}
+
+// Die Lade-Funktion sofort ausführen, damit alle Cloud-Punkte auf der Karte erscheinen
+ladePilzeAusCloud();
 
 // === 8. Schrotflinten-Modus: 7-Tage-Regen an festen Stationen in BW ===
 // === 8. Schrotflinten-Modus: 7-Tage-Regen an 30 festen Stationen in BW (Gänsemarsch-Laden) ===
