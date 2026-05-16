@@ -38,7 +38,7 @@ const overlayKarten = {
 L.control.layers(basisKarten, overlayKarten).addTo(map);
 
 // === 3. Waldschutzgebiete laden ===
-fetch('data/waldschutzgebiete.json')
+fetch('PilzMap/waldschutzgebiete.json')
     .then(function(antwort) { return antwort.json(); })
     .then(function(waldDaten) {
         L.geoJSON(waldDaten, {
@@ -59,7 +59,7 @@ fetch('data/waldschutzgebiete.json')
     .catch(function(fehler) { console.error("Huch, der Wald-Postbote ist gestolpert:", fehler); });
 
 // === 3.1 Naturschutzgebiete laden ===
-fetch('data/naturschutzgebiet.json')
+fetch('PilzMap/naturschutzgebiet.json')
     .then(function(antwort) { return antwort.json(); })
     .then(function(nsgDaten) {
         L.geoJSON(nsgDaten, {
@@ -79,7 +79,7 @@ fetch('data/naturschutzgebiet.json')
     .catch(function(fehler) { console.warn("Naturschutzgebiete-Datei fehlt noch:", fehler); });
 
 // === 3.2 Nationalparks laden ===
-fetch('data/nationalpark.json')
+fetch('PilzMap/nationalpark.json')
     .then(function(antwort) { return antwort.json(); })
     .then(function(npDaten) {
         L.geoJSON(npDaten, {
