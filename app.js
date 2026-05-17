@@ -218,38 +218,109 @@ const supabaseUrl = 'https://htaftyhatzvvdtatmapk.supabase.co';
 const supabaseKey = 'sb_publishable_uV0gGE5DEujJncxSoXcCug_B9SM4VXR';
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-// === 6.1. Hilfsfunktion: Pilz in die Cloud senden ===
-async function speicherePilzInCloud(lat, lng, notiz) {
-    const { data, error } = await _supabase
-        .from('pilze')
-        .insert([
-            { lat: lat, lng: lng, notiz: notiz }
-        ]);
-
-    if (error) {
-        console.error("Fehler beim Speichern in der Cloud:", error);
-        alert("Oh nein, der Pilz konnte nicht gespeichert werden!");
-    } else {
-        console.log("Erfolgreich in der Cloud gespeichert!");
-    }
-}
-
-// === 6.2. Eigene Fundstellen markieren (Rechtsklick / Langer Fingerdruck) ===
+// === 6.1. Das Upload-Formular (Rechtsklick / Langer Fingerdruck) ===
 map.on('contextmenu', function(e) {
-    const notiz = prompt("🍄 Pilz gefunden! Was hast du hier entdeckt?");
-    if (notiz) {
-        // 1. Marker sofort auf der Karte anzeigen
-        L.marker(e.latlng)
-            .addTo(fundstellenLayer)
-            .bindPopup(`🎒 <b>Meine Fundstelle:</b><br>${notiz}`)
-            .openPopup();
-        
-        // 2. Daten an Supabase im Hintergrund senden
-        speicherePilzInCloud(e.latlng.lat, e.latlng.lng, notiz);
-    }
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
+
+    // Wir bauen ein echtes HTML-Formular mit Dropdown und Foto-Upload!
+    const formHtml = `
+        <div style="text-align: center; font-family: sans-serif; min-width: 200px;">
+            <h4 style="margin: 0 0 10px 0;">🍄 Neuer Fund</h4>
+            
+            <input type="text" id="pilz-notiz" placeholder="Welcher Pilz? / Notizen" style="width: 100%; box-sizing: border-box; margin-bottom: 10px; padding: 5px;"><br>
+            
+            <select id="pilz-geniessbarkeit" style="width: 100%; box-sizing: border-box; margin-bottom: 10px; padding: 5px;">
+                <option value="Unbekannt">❓ Unbekannt</option>
+                <option value="Essbar">🍽️ Essbar</option>
+                <option value="Ungenießbar">🤢 Ungenießbar</option>
+                <option value="Giftig">☠️ Giftig</option>
+            </select><br>
+            
+            <input type="file" id="pilz-foto" accept="image/*" style="width: 100%; margin-bottom: 10px;"><br>
+            
+            <button onclick="speichereFund(${lat}, ${lng})" style="width: 100%; padding: 8px; background: #2ca25f; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                Speichern & Hochladen
+            </button>
+            <div id="upload-status" style="margin-top: 10px; font-size: 0.9em; font-weight: bold;"></div>
+        </div>
+    `;
+
+    L.popup()
+        .setLatLng(e.latlng)
+        .setContent(formHtml)
+        .openOn(map);
 });
 
-// === 6.3. Gespeicherte Pilze beim Starten live aus der Cloud laden ===
+// === 6.2. Logik: In Storage hochladen und in Tabelle speichern ===
+window.speichereFund = async function(lat, lng) {
+    const notizFeld = document.getElementById('pilz-notiz').value;
+    const geniessbarkeitFeld = document.getElementById('pilz-geniessbarkeit').value; // NEU: Dropdown auslesen
+    const fotoFeld = document.getElementById('pilz-foto');
+    const statusText = document.getElementById('upload-status');
+
+    if (!notizFeld && fotoFeld.files.length === 0) {
+        statusText.innerHTML = "❌ Bitte eine Notiz oder ein Foto angeben!";
+        return;
+    }
+
+    statusText.innerHTML = "⏳ Speichere in der Cloud...";
+    let endgueltigeFotoUrl = null;
+
+    // 1. Wenn ein Foto ausgewählt wurde, laden wir es erst hoch
+    if (fotoFeld.files.length > 0) {
+        const datei = fotoFeld.files[0];
+        const dateiName = `${Date.now()}_${datei.name.replace(/[^a-zA-Z0-9.]/g, "")}`;
+
+        const { data: uploadDaten, error: uploadFehler } = await _supabase.storage
+            .from('pilz-fotos')
+            .upload(dateiName, datei);
+
+        if (uploadFehler) {
+            console.error("Foto-Upload fehlgeschlagen:", uploadFehler);
+            statusText.innerHTML = "❌ Fehler beim Foto-Upload!";
+            return; 
+        }
+
+        const { data: urlDaten } = _supabase.storage
+            .from('pilz-fotos')
+            .getPublicUrl(dateiName);
+            
+        endgueltigeFotoUrl = urlDaten.publicUrl;
+    }
+
+    // 2. Jetzt speichern wir alle Daten in der Tabelle (inklusive Genießbarkeit!)
+    const { data: dbDaten, error: dbFehler } = await _supabase
+        .from('pilze')
+        .insert([{ 
+            lat: lat, 
+            lng: lng, 
+            notiz: notizFeld, 
+            geniessbarkeit: geniessbarkeitFeld, // NEU: An Supabase senden
+            foto_url: endgueltigeFotoUrl 
+        }]);
+
+    if (dbFehler) {
+        console.error("Datenbank-Fehler:", dbFehler);
+        statusText.innerHTML = "❌ Fehler beim Speichern!";
+    } else {
+        statusText.innerHTML = "✅ Erfolgreich gespeichert!";
+        
+        setTimeout(() => {
+            map.closePopup();
+            
+            // Pop-up für die Karte zusammenbauen
+            let popupInhalt = `🎒 <b>Fundstelle:</b><br>${notizFeld}<br><b>Status:</b> ${geniessbarkeitFeld}`;
+            if (endgueltigeFotoUrl) {
+                popupInhalt += `<br><img src="${endgueltigeFotoUrl}" style="width: 150px; height: auto; margin-top: 10px; border-radius: 5px; box-shadow: 0px 0px 5px rgba(0,0,0,0.3);">`;
+            }
+            
+            L.marker([lat, lng]).addTo(fundstellenLayer).bindPopup(popupInhalt).openPopup();
+        }, 1000);
+    }
+};
+
+// === 6.3. Gespeicherte Pilze live aus der Cloud laden ===
 async function ladePilzeAusCloud() {
     const { data, error } = await _supabase
         .from('pilze')
@@ -261,17 +332,21 @@ async function ladePilzeAusCloud() {
     }
 
     if (data) {
-        // Wir gehen jeden gefundenen Pilz aus der Datenbank durch
         data.forEach(function(pilz) {
-            L.marker([pilz.lat, pilz.lng])
-                .addTo(fundstellenLayer)
-                .bindPopup(`🎒 <b>Meine Fundstelle:</b><br>${pilz.notiz}`);
+            // NEU: Wir lesen auch die Genießbarkeit aus der Datenbank aus
+            const status = pilz.geniessbarkeit || "Unbekannt";
+            let popupInhalt = `🎒 <b>Fundstelle:</b><br>${pilz.notiz}<br><b>Status:</b> ${status}`;
+            
+            if (pilz.foto_url) {
+                popupInhalt += `<br><img src="${pilz.foto_url}" style="width: 150px; height: auto; margin-top: 10px; border-radius: 5px; box-shadow: 0px 0px 5px rgba(0,0,0,0.3);">`;
+            }
+            
+            L.marker([pilz.lat, pilz.lng]).addTo(fundstellenLayer).bindPopup(popupInhalt);
         });
         console.log(`${data.length} Pilze aus der Cloud geladen!`);
     }
 }
 
-// Die Lade-Funktion sofort ausführen, damit alle Cloud-Punkte auf der Karte erscheinen
 ladePilzeAusCloud();
 
 // === 8. Schrotflinten-Modus: 7-Tage-Regen an festen Stationen in BW ===
