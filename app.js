@@ -324,10 +324,16 @@ window.generiereAnsicht = function(id) {
     html += `</div></div>`;
     return html;
 };
-// === 6.4. UPDATE-UI: Den Bearbeitungs-Modus öffnen ===
+// === 6.4. UPDATE-UI: Den Bearbeitungs-Modus öffnen (mit dynamischem Nachladen) ===
 window.oeffneBearbeitung = function(id) {
     const p = window.pilzDatenSpeicher[id];
     const marker = window.pilzMarkerSpeicher[id];
+
+    // Wir prüfen dynamisch, wie viele der 3 Foto-Plätze aktuell frei/leer sind
+    let freieSlotsCount = 0;
+    if (!p.foto_url) freieSlotsCount++;
+    if (!p.foto_url_2) freieSlotsCount++;
+    if (!p.foto_url_3) freieSlotsCount++;
 
     let html = `<div style="font-family: sans-serif; min-width: 220px;">
         <h4 style="margin: 0 0 5px 0;">✏️ Pilz bearbeiten</h4>
@@ -341,33 +347,93 @@ window.oeffneBearbeitung = function(id) {
         </select>
         
         <div style="font-size: 0.8em; margin-bottom: 10px;">
-            ${p.foto_url ? `<div style="margin-bottom:3px;">Foto 1: <button onclick="loescheEigenschaft(${id}, 'foto_url')" style="color:red; cursor:pointer;">🗑️ Löschen</button></div>` : ''}
-            ${p.foto_url_2 ? `<div style="margin-bottom:3px;">Foto 2: <button onclick="loescheEigenschaft(${id}, 'foto_url_2')" style="color:red; cursor:pointer;">🗑️ Löschen</button></div>` : ''}
-            ${p.foto_url_3 ? `<div style="margin-bottom:3px;">Foto 3: <button onclick="loescheEigenschaft(${id}, 'foto_url_3')" style="color:red; cursor:pointer;">🗑️ Löschen</button></div>` : ''}
+            ${p.foto_url ? `<div style="margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;"><span>📷 Foto 1:</span> <button onclick="loescheEigenschaft(${id}, 'foto_url')" style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">🗑️ Löschen</button></div>` : ''}
+            ${p.foto_url_2 ? `<div style="margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;"><span>📷 Foto 2:</span> <button onclick="loescheEigenschaft(${id}, 'foto_url_2')" style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">🗑️ Löschen</button></div>` : ''}
+            ${p.foto_url_3 ? `<div style="margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;"><span>📷 Foto 3:</span> <button onclick="loescheEigenschaft(${id}, 'foto_url_3')" style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">🗑️ Löschen</button></div>` : ''}
         </div>
 
-        <button onclick="speichereAenderungen(${id})" style="width: 100%; margin-bottom: 5px; padding: 6px; background: #2ca25f; color: white; border: none; border-radius: 5px;">💾 Speichern</button>
-        <button onclick="loeschePilzKompett(${id})" style="width: 100%; padding: 6px; background: #ff3333; color: white; border: none; border-radius: 5px;">🚨 Eintrag komplett löschen</button>
+        ${freieSlotsCount > 0 ? `
+            <div style="background: #f9f9f9; padding: 8px; border-radius: 5px; margin-bottom: 10px; border: 1px dashed #ccc;">
+                <label style="font-size: 0.8em; display:block; text-align:left; font-weight:bold; margin-bottom:4px;">Fotos hinzufügen (noch ${freieSlotsCount} frei):</label>
+                <input type="file" id="edit-foto-${id}" accept="image/*" multiple style="width: 100%; font-size: 0.85em;">
+            </div>
+        ` : ''}
+
+        <button onclick="speichereAenderungen(${id})" style="width: 100%; margin-bottom: 5px; padding: 6px; background: #2ca25f; color: white; border: none; border-radius: 5px; cursor:pointer; font-weight:bold;">💾 Speichern</button>
+        <button onclick="loeschePilzKompett(${id})" style="width: 100%; padding: 6px; background: #ff3333; color: white; border: none; border-radius: 5px; cursor:pointer;">🚨 Eintrag komplett löschen</button>
+        
+        <div id="edit-upload-status-${id}" style="margin-top: 10px; font-size: 0.9em; font-weight: bold; text-align:center;"></div>
     </div>`;
 
     marker.setPopupContent(html);
 };
 
-// === 6.5. UPDATE: Änderungen in die Cloud senden ===
+// === 6.5. UPDATE: Änderungen und NEUE FOTOS in die Cloud senden ===
 window.speichereAenderungen = async function(id) {
     const neueNotiz = document.getElementById(`edit-notiz-${id}`).value;
     const neuesGen = document.getElementById(`edit-gen-${id}`).value;
+    const fotoFeld = document.getElementById(`edit-foto-${id}`);
+    const dateien = fotoFeld ? fotoFeld.files : [];
+    const statusText = document.getElementById(`edit-upload-status-${id}`);
 
-    const { error } = await _supabase.from('pilze').update({ 
-        notiz: neueNotiz, 
-        geniessbarkeit: neuesGen 
-    }).eq('id', id);
+    const p = window.pilzDatenSpeicher[id];
+    
+    // Welche Spalten-Plätze sind bei diesem Pilz aktuell unbesetzt?
+    let freieSlots = [];
+    if (!p.foto_url) freieSlots.push('foto_url');
+    if (!p.foto_url_2) freieSlots.push('foto_url_2');
+    if (!p.foto_url_3) freieSlots.push('foto_url_3');
+
+    // Sicherheits-Check: Hat der Nutzer versucht, zu viele Bilder auszuwählen?
+    if (dateien.length > freieSlots.length) {
+        if (statusText) statusText.innerHTML = `❌ Maximal ${freieSlots.length} weitere(s) Foto(s) erlaubt!`;
+        return;
+    }
+
+    if (statusText && dateien.length > 0) {
+        statusText.innerHTML = "⏳ Neue Fotos werden hochgeladen...";
+    }
+
+    // Wir bereiten das Paket für Supabase vor (Text-Updates sind immer dabei)
+    const updateDaten = {
+        notiz: neueNotiz,
+        geniessbarkeit: neuesGen
+    };
+
+    // Wenn neue Bilder ausgewählt wurden, laden wir sie hoch und weisen sie den freien Plätzen zu
+    for (let i = 0; i < dateien.length; i++) {
+        const dateiName = `${Date.now()}_${dateien[i].name.replace(/[^a-zA-Z0-9.]/g, "")}`;
+        const { error } = await _supabase.storage.from('pilzfotos').upload(dateiName, dateien[i]);
+        
+        if (!error) {
+            const publicUrl = _supabase.from('pilzfotos').getPublicUrl(dateiName).data.publicUrl;
+            // Wir nehmen uns die nächste freie Spalte aus unserem Array (z.B. 'foto_url_2')
+            const zielSlot = freieSlots[i];
+            updateDaten[zielSlot] = publicUrl;
+        } else {
+            console.error("Fehler beim Upload im Edit-Modus:", error);
+        }
+    }
+
+    // Ab zu Supabase mit dem erweiterten Update-Paket!
+    const { error } = await _supabase.from('pilze').update(updateDaten).eq('id', id);
 
     if (!error) {
-        // Lokalen Speicher updaten & Popup zurück zur Ansicht wechseln
+        if (statusText) statusText.innerHTML = "✅ Erfolgreich aktualisiert!";
+        
+        // Wir aktualisieren unseren lokalen Zwischenspeicher im Browser direkt mit
         window.pilzDatenSpeicher[id].notiz = neueNotiz;
         window.pilzDatenSpeicher[id].geniessbarkeit = neuesGen;
-        window.pilzMarkerSpeicher[id].setPopupContent(window.generiereAnsicht(id));
+        Object.keys(updateDaten).forEach(key => {
+            window.pilzDatenSpeicher[id][key] = updateDaten[key];
+        });
+
+        // Nach einer kurzen Sekunde wechseln wir das Popup zurück zur neuen, schönen Foto-Ansicht
+        setTimeout(() => {
+            window.pilzMarkerSpeicher[id].setPopupContent(window.generiereAnsicht(id));
+        }, 800);
+    } else {
+        if (statusText) statusText.innerHTML = "❌ Fehler beim Speichern!";
     }
 };
 
