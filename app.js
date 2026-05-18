@@ -273,7 +273,7 @@ window.speichereFund = async function(lat, lng) {
         const dateiName = `${Date.now()}_${datei.name.replace(/[^a-zA-Z0-9.]/g, "")}`;
 
         const { data: uploadDaten, error: uploadFehler } = await _supabase.storage
-            .from('pilz-fotos')
+            .from('PILZFUNDE_FOTO-UPLOAD')
             .upload(dateiName, datei);
 
         if (uploadFehler) {
@@ -283,7 +283,7 @@ window.speichereFund = async function(lat, lng) {
         }
 
         const { data: urlDaten } = _supabase.storage
-            .from('pilz-fotos')
+            .from('PILZFUNDE_FOTO-UPLOAD')
             .getPublicUrl(dateiName);
             
         endgueltigeFotoUrl = urlDaten.publicUrl;
