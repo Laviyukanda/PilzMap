@@ -218,130 +218,181 @@ const supabaseUrl = 'https://htaftyhatzvvdtatmapk.supabase.co';
 const supabaseKey = 'sb_publishable_uV0gGE5DEujJncxSoXcCug_B9SM4VXR';
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-// === 6.1. Das Upload-Formular (Rechtsklick / Langer Fingerdruck) ===
+// === 6.0. Globaler Speicher für unsere Pilz-App ===
+window.pilzDatenSpeicher = {}; // Hier merken wir uns alle geladenen Pilze
+window.pilzMarkerSpeicher = {}; // Hier merken wir uns die Marker auf der Karte
+
+// === 6.1. Neues Fund-Formular (Rechtsklick) ===
 map.on('contextmenu', function(e) {
     const lat = e.latlng.lat;
     const lng = e.latlng.lng;
 
-    // Wir bauen ein echtes HTML-Formular mit Dropdown und Foto-Upload!
+    // NEU: 'multiple' erlaubt die Auswahl mehrerer Dateien
     const formHtml = `
-        <div style="text-align: center; font-family: sans-serif; min-width: 200px;">
+        <div style="text-align: center; font-family: sans-serif; min-width: 220px;">
             <h4 style="margin: 0 0 10px 0;">🍄 Neuer Fund</h4>
-            
-            <input type="text" id="pilz-notiz" placeholder="Welcher Pilz? / Notizen" style="width: 100%; box-sizing: border-box; margin-bottom: 10px; padding: 5px;"><br>
-            
-            <select id="pilz-geniessbarkeit" style="width: 100%; box-sizing: border-box; margin-bottom: 10px; padding: 5px;">
+            <input type="text" id="neu-notiz" placeholder="Welcher Pilz? / Notizen" style="width: 100%; margin-bottom: 10px; padding: 5px;"><br>
+            <select id="neu-geniessbarkeit" style="width: 100%; margin-bottom: 10px; padding: 5px;">
                 <option value="Unbekannt">❓ Unbekannt</option>
                 <option value="Essbar">🍽️ Essbar</option>
                 <option value="Ungenießbar">🤢 Ungenießbar</option>
                 <option value="Giftig">☠️ Giftig</option>
             </select><br>
-            
-            <input type="file" id="pilz-foto" accept="image/*" style="width: 100%; margin-bottom: 10px;"><br>
-            
-            <button onclick="speichereFund(${lat}, ${lng})" style="width: 100%; padding: 8px; background: #2ca25f; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            <label style="font-size: 0.8em; display:block; text-align:left;">Bis zu 3 Fotos:</label>
+            <input type="file" id="neu-foto" accept="image/*" multiple style="width: 100%; margin-bottom: 10px;"><br>
+            <button onclick="speichereNeuenFund(${lat}, ${lng})" style="width: 100%; padding: 8px; background: #2ca25f; color: white; border: none; border-radius: 5px; cursor: pointer;">
                 Speichern & Hochladen
             </button>
             <div id="upload-status" style="margin-top: 10px; font-size: 0.9em; font-weight: bold;"></div>
         </div>
     `;
 
-    L.popup()
-        .setLatLng(e.latlng)
-        .setContent(formHtml)
-        .openOn(map);
+    L.popup().setLatLng(e.latlng).setContent(formHtml).openOn(map);
 });
 
-// === 6.2. Logik: In Storage hochladen und in Tabelle speichern ===
-window.speichereFund = async function(lat, lng) {
-    const notizFeld = document.getElementById('pilz-notiz').value;
-    const geniessbarkeitFeld = document.getElementById('pilz-geniessbarkeit').value; // NEU: Dropdown auslesen
-    const fotoFeld = document.getElementById('pilz-foto');
+// === 6.2. CREATE: Neuen Fund in die Cloud laden ===
+window.speichereNeuenFund = async function(lat, lng) {
+    const notizFeld = document.getElementById('neu-notiz').value;
+    const genFeld = document.getElementById('neu-geniessbarkeit').value;
+    const dateien = document.getElementById('neu-foto').files;
     const statusText = document.getElementById('upload-status');
 
-    if (!notizFeld && fotoFeld.files.length === 0) {
-        statusText.innerHTML = "❌ Bitte eine Notiz oder ein Foto angeben!";
-        return;
+    if (dateien.length > 3) {
+        statusText.innerHTML = "❌ Maximal 3 Fotos erlaubt!"; return;
     }
 
-    statusText.innerHTML = "⏳ Speichere in der Cloud...";
-    let endgueltigeFotoUrl = null;
+    statusText.innerHTML = "⏳ Lade hoch... (das kann dauern)";
+    let urls = [null, null, null]; // Platzhalter für bis zu 3 Bilder
 
-    // 1. Wenn ein Foto ausgewählt wurde, laden wir es erst hoch
-    if (fotoFeld.files.length > 0) {
-        const datei = fotoFeld.files[0];
-        const dateiName = `${Date.now()}_${datei.name.replace(/[^a-zA-Z0-9.]/g, "")}`;
-
-        const { data: uploadDaten, error: uploadFehler } = await _supabase.storage
-            .from('pilzfunde_foto-upload')
-            .upload(dateiName, datei);
-
-        if (uploadFehler) {
-            console.error("Foto-Upload fehlgeschlagen:", uploadFehler);
-            statusText.innerHTML = "❌ Fehler beim Foto-Upload!";
-            return; 
+    // Wir laden die Bilder nacheinander hoch (maximal 3)
+    for (let i = 0; i < Math.min(dateien.length, 3); i++) {
+        const dateiName = `${Date.now()}_${dateien[i].name.replace(/[^a-zA-Z0-9.]/g, "")}`;
+        const { error } = await _supabase.storage.from('pilzfotos').upload(dateiName, dateien[i]);
+        if (!error) {
+            urls[i] = _supabase.storage.from('pilzfotos').getPublicUrl(dateiName).data.publicUrl;
         }
-
-        const { data: urlDaten } = _supabase.storage
-            .from('pilzfunde_foto-upload')
-            .getPublicUrl(dateiName);
-            
-        endgueltigeFotoUrl = urlDaten.publicUrl;
     }
 
-    // 2. Jetzt speichern wir alle Daten in der Tabelle (inklusive Genießbarkeit!)
-    const { data: dbDaten, error: dbFehler } = await _supabase
-        .from('pilze')
-        .insert([{ 
-            lat: lat, 
-            lng: lng, 
-            notiz: notizFeld, 
-            geniessbarkeit: geniessbarkeitFeld, // NEU: An Supabase senden
-            foto_url: endgueltigeFotoUrl 
-        }]);
+    // Ab in die Datenbank damit!
+    const { data, error } = await _supabase.from('pilze').insert([{ 
+        lat: lat, lng: lng, notiz: notizFeld, geniessbarkeit: genFeld,
+        foto_url: urls[0], foto_url_2: urls[1], foto_url_3: urls[2]
+    }]).select(); // .select() gibt uns die neue, generierte ID sofort zurück!
 
-    if (dbFehler) {
-        console.error("Datenbank-Fehler:", dbFehler);
+    if (error) {
         statusText.innerHTML = "❌ Fehler beim Speichern!";
     } else {
-        statusText.innerHTML = "✅ Erfolgreich gespeichert!";
-        
-        setTimeout(() => {
-            map.closePopup();
-            
-            // Pop-up für die Karte zusammenbauen
-            let popupInhalt = `🎒 <b>Fundstelle:</b><br>${notizFeld}<br><b>Status:</b> ${geniessbarkeitFeld}`;
-            if (endgueltigeFotoUrl) {
-                popupInhalt += `<br><img src="${endgueltigeFotoUrl}" style="width: 150px; height: auto; margin-top: 10px; border-radius: 5px; box-shadow: 0px 0px 5px rgba(0,0,0,0.3);">`;
-            }
-            
-            L.marker([lat, lng]).addTo(fundstellenLayer).bindPopup(popupInhalt).openPopup();
-        }, 1000);
+        statusText.innerHTML = "✅ Gespeichert!";
+        setTimeout(() => { map.closePopup(); ladePilzeAusCloud(); }, 1000); // Karte aktualisieren
     }
 };
 
-// === 6.3. Gespeicherte Pilze live aus der Cloud laden ===
-async function ladePilzeAusCloud() {
-    const { data, error } = await _supabase
-        .from('pilze')
-        .select('*');
+// === 6.3. READ: Die Ansicht eines Pilzes bauen ===
+window.generiereAnsicht = function(id) {
+    const p = window.pilzDatenSpeicher[id];
+    let html = `<div style="font-family: sans-serif; min-width: 200px;">
+        <h4 style="margin: 0 0 5px 0;">🍄 ${p.geniessbarkeit || "Unbekannt"}</h4>
+        <p style="margin: 0 0 10px 0;">${p.notiz || "<i>Keine Notiz</i>"}</p>
+        <div style="display: flex; gap: 5px; overflow-x: auto; margin-bottom: 10px;">`;
+    
+    // Wir zeigen alle Fotos an, die existieren
+    if (p.foto_url) html += `<img src="${p.foto_url}" style="height: 80px; border-radius: 4px;">`;
+    if (p.foto_url_2) html += `<img src="${p.foto_url_2}" style="height: 80px; border-radius: 4px;">`;
+    if (p.foto_url_3) html += `<img src="${p.foto_url_3}" style="height: 80px; border-radius: 4px;">`;
+    
+    html += `</div>
+        <button onclick="oeffneBearbeitung(${id})" style="width: 100%; padding: 6px; background: #0055ff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            ✏️ Bearbeiten
+        </button>
+    </div>`;
+    return html;
+};
 
-    if (error) {
-        console.error("Fehler beim Laden der Pilze:", error);
-        return;
+// === 6.4. UPDATE-UI: Den Bearbeitungs-Modus öffnen ===
+window.oeffneBearbeitung = function(id) {
+    const p = window.pilzDatenSpeicher[id];
+    const marker = window.pilzMarkerSpeicher[id];
+
+    let html = `<div style="font-family: sans-serif; min-width: 220px;">
+        <h4 style="margin: 0 0 5px 0;">✏️ Pilz bearbeiten</h4>
+        <input type="text" id="edit-notiz-${id}" value="${p.notiz || ''}" style="width: 100%; margin-bottom: 5px; padding: 5px;">
+        
+        <select id="edit-gen-${id}" style="width: 100%; margin-bottom: 10px; padding: 5px;">
+            <option value="Unbekannt" ${p.geniessbarkeit === 'Unbekannt' ? 'selected' : ''}>❓ Unbekannt</option>
+            <option value="Essbar" ${p.geniessbarkeit === 'Essbar' ? 'selected' : ''}>🍽️ Essbar</option>
+            <option value="Ungenießbar" ${p.geniessbarkeit === 'Ungenießbar' ? 'selected' : ''}>🤢 Ungenießbar</option>
+            <option value="Giftig" ${p.geniessbarkeit === 'Giftig' ? 'selected' : ''}>☠️ Giftig</option>
+        </select>
+        
+        <div style="font-size: 0.8em; margin-bottom: 10px;">
+            ${p.foto_url ? `<div style="margin-bottom:3px;">Foto 1: <button onclick="loescheEigenschaft(${id}, 'foto_url')" style="color:red; cursor:pointer;">🗑️ Löschen</button></div>` : ''}
+            ${p.foto_url_2 ? `<div style="margin-bottom:3px;">Foto 2: <button onclick="loescheEigenschaft(${id}, 'foto_url_2')" style="color:red; cursor:pointer;">🗑️ Löschen</button></div>` : ''}
+            ${p.foto_url_3 ? `<div style="margin-bottom:3px;">Foto 3: <button onclick="loescheEigenschaft(${id}, 'foto_url_3')" style="color:red; cursor:pointer;">🗑️ Löschen</button></div>` : ''}
+        </div>
+
+        <button onclick="speichereAenderungen(${id})" style="width: 100%; margin-bottom: 5px; padding: 6px; background: #2ca25f; color: white; border: none; border-radius: 5px;">💾 Speichern</button>
+        <button onclick="loeschePilzKompett(${id})" style="width: 100%; padding: 6px; background: #ff3333; color: white; border: none; border-radius: 5px;">🚨 Eintrag komplett löschen</button>
+    </div>`;
+
+    marker.setPopupContent(html);
+};
+
+// === 6.5. UPDATE: Änderungen in die Cloud senden ===
+window.speichereAenderungen = async function(id) {
+    const neueNotiz = document.getElementById(`edit-notiz-${id}`).value;
+    const neuesGen = document.getElementById(`edit-gen-${id}`).value;
+
+    const { error } = await _supabase.from('pilze').update({ 
+        notiz: neueNotiz, 
+        geniessbarkeit: neuesGen 
+    }).eq('id', id);
+
+    if (!error) {
+        // Lokalen Speicher updaten & Popup zurück zur Ansicht wechseln
+        window.pilzDatenSpeicher[id].notiz = neueNotiz;
+        window.pilzDatenSpeicher[id].geniessbarkeit = neuesGen;
+        window.pilzMarkerSpeicher[id].setPopupContent(window.generiereAnsicht(id));
     }
+};
+
+// === 6.6. DELETE: Ein einzelnes Foto aus der Datenbank löschen ===
+window.loescheEigenschaft = async function(id, spaltenName) {
+    const updateDaten = {};
+    updateDaten[spaltenName] = null; // Wir leeren das Feld in der Cloud
+
+    const { error } = await _supabase.from('pilze').update(updateDaten).eq('id', id);
+    if (!error) {
+        window.pilzDatenSpeicher[id][spaltenName] = null; // Lokal leeren
+        oeffneBearbeitung(id); // Fenster aktualisieren, damit der Button verschwindet
+    }
+};
+
+// === 6.7. DELETE: Den ganzen Marker löschen ===
+window.loeschePilzKompett = async function(id) {
+    if(confirm("Möchtest du diesen Fundort wirklich für immer löschen?")) {
+        const { error } = await _supabase.from('pilze').delete().eq('id', id);
+        if (!error) {
+            fundstellenLayer.removeLayer(window.pilzMarkerSpeicher[id]); // Von der Karte fegen
+            map.closePopup();
+        }
+    }
+};
+
+// === 6.8. INITIALISIERUNG: Pilze beim Start laden ===
+async function ladePilzeAusCloud() {
+    fundstellenLayer.clearLayers(); // Einmal aufräumen, falls wir nach einem Upload neu laden
+    const { data, error } = await _supabase.from('pilze').select('*');
 
     if (data) {
         data.forEach(function(pilz) {
-            // NEU: Wir lesen auch die Genießbarkeit aus der Datenbank aus
-            const status = pilz.geniessbarkeit || "Unbekannt";
-            let popupInhalt = `🎒 <b>Fundstelle:</b><br>${pilz.notiz}<br><b>Status:</b> ${status}`;
+            if (!pilz.id) return; // Sicherheits-Check
+            window.pilzDatenSpeicher[pilz.id] = pilz; // Im Lexikon abspeichern
             
-            if (pilz.foto_url) {
-                popupInhalt += `<br><img src="${pilz.foto_url}" style="width: 150px; height: auto; margin-top: 10px; border-radius: 5px; box-shadow: 0px 0px 5px rgba(0,0,0,0.3);">`;
-            }
+            const marker = L.marker([pilz.lat, pilz.lng])
+                .addTo(fundstellenLayer)
+                .bindPopup(() => window.generiereAnsicht(pilz.id)); // Bindet die Ansicht dynamisch
             
-            L.marker([pilz.lat, pilz.lng]).addTo(fundstellenLayer).bindPopup(popupInhalt);
+            window.pilzMarkerSpeicher[pilz.id] = marker; // Marker abspeichern
         });
         console.log(`${data.length} Pilze aus der Cloud geladen!`);
     }
