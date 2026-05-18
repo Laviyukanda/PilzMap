@@ -287,7 +287,7 @@ window.speichereNeuenFund = async function(lat, lng) {
     }
 };
 
-// === 6.3. READ: Die Ansicht eines Pilzes bauen (Fokus auf Fotos) ===
+// === 6.3. READ: Die Ansicht eines Pilzes bauen (Bilder nicht abgeschnitten) ===
 window.generiereAnsicht = function(id) {
     const p = window.pilzDatenSpeicher[id];
     
@@ -304,19 +304,20 @@ window.generiereAnsicht = function(id) {
         
         <div style="display: flex; flex-direction: column; gap: 6px;">`;
     
-    // Foto 1 als großes Hauptbild (Hero)
+    // Foto 1 als großes Hauptbild
     if (p.foto_url) {
-        html += `<img src="${p.foto_url}" style="width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.15);">`;
+        // NEU: object-fit: contain; und ein minimal hellgrauer Hintergrund, falls Ränder entstehen
+        html += `<img src="${p.foto_url}" style="width: 100%; max-height: 220px; object-fit: contain; background: #f9f9f9; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.15);">`;
     }
     
-    // Foto 2 und 3 nebeneinander als kleinere Thumbnails darunter
+    // Foto 2 und 3 nebeneinander darunter
     if (p.foto_url_2 || p.foto_url_3) {
-        html += `<div style="display: flex; gap: 6px;">`;
+        html += `<div style="display: flex; gap: 6px; justify-content: center;">`;
         if (p.foto_url_2) {
-            html += `<img src="${p.foto_url_2}" style="flex: 1; height: 80px; object-fit: cover; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">`;
+            html += `<img src="${p.foto_url_2}" style="flex: 1; width: 100%; height: 100px; object-fit: contain; background: #f9f9f9; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">`;
         }
         if (p.foto_url_3) {
-            html += `<img src="${p.foto_url_3}" style="flex: 1; height: 80px; object-fit: cover; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">`;
+            html += `<img src="${p.foto_url_3}" style="flex: 1; width: 100%; height: 100px; object-fit: contain; background: #f9f9f9; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">`;
         }
         html += `</div>`;
     }
