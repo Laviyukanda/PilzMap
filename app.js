@@ -287,27 +287,43 @@ window.speichereNeuenFund = async function(lat, lng) {
     }
 };
 
-// === 6.3. READ: Die Ansicht eines Pilzes bauen ===
+// === 6.3. READ: Die Ansicht eines Pilzes bauen (Fokus auf Fotos) ===
 window.generiereAnsicht = function(id) {
     const p = window.pilzDatenSpeicher[id];
-    let html = `<div style="font-family: sans-serif; min-width: 200px;">
-        <h4 style="margin: 0 0 5px 0;">🍄 ${p.geniessbarkeit || "Unbekannt"}</h4>
-        <p style="margin: 0 0 10px 0;">${p.notiz || "<i>Keine Notiz</i>"}</p>
-        <div style="display: flex; gap: 5px; overflow-x: auto; margin-bottom: 10px;">`;
     
-    // Wir zeigen alle Fotos an, die existieren
-    if (p.foto_url) html += `<img src="${p.foto_url}" style="height: 80px; border-radius: 4px;">`;
-    if (p.foto_url_2) html += `<img src="${p.foto_url_2}" style="height: 80px; border-radius: 4px;">`;
-    if (p.foto_url_3) html += `<img src="${p.foto_url_3}" style="height: 80px; border-radius: 4px;">`;
+    let html = `<div style="font-family: sans-serif; min-width: 240px; padding-bottom: 5px;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <h4 style="margin: 0; font-size: 1.1em;">🍄 ${p.geniessbarkeit || "Unbekannt"}</h4>
+            <button onclick="oeffneBearbeitung(${id})" style="background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 0; opacity: 0.6; transition: opacity 0.2s;" title="Eintrag bearbeiten" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">
+                ✏️
+            </button>
+        </div>
+        
+        <p style="margin: 0 0 12px 0; color: #444;">${p.notiz || "<i>Keine Notiz</i>"}</p>
+        
+        <div style="display: flex; flex-direction: column; gap: 6px;">`;
     
-    html += `</div>
-        <button onclick="oeffneBearbeitung(${id})" style="width: 100%; padding: 6px; background: #0055ff; color: white; border: none; border-radius: 5px; cursor: pointer;">
-            ✏️ Bearbeiten
-        </button>
-    </div>`;
+    // Foto 1 als großes Hauptbild (Hero)
+    if (p.foto_url) {
+        html += `<img src="${p.foto_url}" style="width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.15);">`;
+    }
+    
+    // Foto 2 und 3 nebeneinander als kleinere Thumbnails darunter
+    if (p.foto_url_2 || p.foto_url_3) {
+        html += `<div style="display: flex; gap: 6px;">`;
+        if (p.foto_url_2) {
+            html += `<img src="${p.foto_url_2}" style="flex: 1; height: 80px; object-fit: cover; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">`;
+        }
+        if (p.foto_url_3) {
+            html += `<img src="${p.foto_url_3}" style="flex: 1; height: 80px; object-fit: cover; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">`;
+        }
+        html += `</div>`;
+    }
+    
+    html += `</div></div>`;
     return html;
 };
-
 // === 6.4. UPDATE-UI: Den Bearbeitungs-Modus öffnen ===
 window.oeffneBearbeitung = function(id) {
     const p = window.pilzDatenSpeicher[id];
