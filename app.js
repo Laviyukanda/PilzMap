@@ -250,40 +250,54 @@ map.on('contextmenu', function(e) {
     L.popup().setLatLng(e.latlng).setContent(formHtml).openOn(map);
 });
 
-// === 6.2. CREATE: Neuen Fund in die Cloud laden ===
+// === 6.2. CREATE: Neuen Fund in die Cloud laden (mit Fehler-Scanner) ===
 window.speichereNeuenFund = async function(lat, lng) {
     const notizFeld = document.getElementById('neu-notiz').value;
     const genFeld = document.getElementById('neu-geniessbarkeit').value;
     const dateien = document.getElementById('neu-foto').files;
     const statusText = document.getElementById('upload-status');
 
+    console.log("Versuche neuen Fund zu speichern. Ausgewählte Dateien:", dateien.length);
+
     if (dateien.length > 3) {
         statusText.innerHTML = "❌ Maximal 3 Fotos erlaubt!"; return;
     }
 
     statusText.innerHTML = "⏳ Lade hoch... (das kann dauern)";
-    let urls = [null, null, null]; // Platzhalter für bis zu 3 Bilder
+    let urls = [null, null, null]; 
 
-    // Wir laden die Bilder nacheinander hoch (maximal 3)
+    // Wir laden die Bilder nacheinander hoch
     for (let i = 0; i < Math.min(dateien.length, 3); i++) {
         const dateiName = `${Date.now()}_${dateien[i].name.replace(/[^a-zA-Z0-9.]/g, "")}`;
-        const { error } = await _supabase.storage.from('pilzfotos').upload(dateiName, dateien[i]);
-        if (!error) {
+        console.log(`Starte Upload für Bild ${i+1}: ${dateiName}`);
+        
+        const { data, error } = await _supabase.storage.from('pilzfotos').upload(dateiName, dateien[i]);
+        
+        if (error) {
+            console.error(`🚨 FEHLER beim Upload von Bild ${i+1}:`, error);
+            statusText.innerHTML = `❌ Fehler bei Bild ${i+1}`;
+            return; // Wir brechen hier hart ab, damit wir den Fehler sehen!
+        } else {
+            console.log(`✅ Bild ${i+1} erfolgreich in Storage geladen!`);
             urls[i] = _supabase.storage.from('pilzfotos').getPublicUrl(dateiName).data.publicUrl;
         }
     }
+
+    console.log("Uploads fertig. Generierte URLs:", urls);
 
     // Ab in die Datenbank damit!
     const { data, error } = await _supabase.from('pilze').insert([{ 
         lat: lat, lng: lng, notiz: notizFeld, geniessbarkeit: genFeld,
         foto_url: urls[0], foto_url_2: urls[1], foto_url_3: urls[2]
-    }]).select(); // .select() gibt uns die neue, generierte ID sofort zurück!
+    }]).select(); 
 
     if (error) {
-        statusText.innerHTML = "❌ Fehler beim Speichern!";
+        console.error("🚨 FEHLER beim Schreiben in die Datenbank:", error);
+        statusText.innerHTML = "❌ Datenbank-Fehler!";
     } else {
+        console.log("✅ Eintrag erfolgreich in der Datenbank erstellt!", data);
         statusText.innerHTML = "✅ Gespeichert!";
-        setTimeout(() => { map.closePopup(); ladePilzeAusCloud(); }, 1000); // Karte aktualisieren
+        setTimeout(() => { map.closePopup(); ladePilzeAusCloud(); }, 1000); 
     }
 };
 
