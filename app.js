@@ -421,7 +421,7 @@ window.speichereAenderungen = async function(id) {
         const { error } = await _supabase.storage.from('pilzfotos').upload(dateiName, dateien[i]);
         
         if (!error) {
-            const publicUrl = _supabase.from('pilzfotos').getPublicUrl(dateiName).data.publicUrl;
+            const publicUrl = _supabase.storage.from('pilzfotos').getPublicUrl(dateiName).data.publicUrl;
             // Wir nehmen uns die nächste freie Spalte aus unserem Array (z.B. 'foto_url_2')
             const zielSlot = freieSlots[i];
             updateDaten[zielSlot] = publicUrl;
