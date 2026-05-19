@@ -683,60 +683,35 @@ window.routenPlaner = L.Routing.control({
     language: 'de'
 }).addTo(map);
 
-function berechneWanderStatistik(route) {
-    // 1. Koordinaten der Route extrahieren
-    const koordinaten = route.coordinates; 
-    
-    // 2. Distanz in KM
-    const distanzKm = (route.summary.totalDistance / 1000).toFixed(2);
-    
-    // 3. Höhenmeter (Hier kommt später die Magie, die die Höhen aus den Punkten liest)
-    // Hinweis: OSRM/ORS liefern in route.coordinates bei jedem Punkt ein .alt oder .ele
-    let aufstieg = 0;
-    let abstieg = 0;
-    
-    for (let i = 1; i < koordinaten.length; i++) {
-        let diff = (koordinaten[i].alt || 0) - (koordinaten[i-1].alt || 0);
-        if (diff > 0) aufstieg += diff;
-        else abstieg += Math.abs(diff);
-    }
-
-    console.log(`Statistik: ${distanzKm}km, Auf: ${aufstieg.toFixed(0)}m, Ab: ${abstieg.toFixed(0)}m`);
-    
-    // --- NÄCHSTER SCHRITT (Vorschau): ---
-    // Hier rufen wir jetzt die Funktion auf, die prüft, wie viel NSG auf der Strecke liegt
-    // und dann den "In Supabase speichern"-Button anzeigt.
-}
 async function berechneWanderStatistik(route) {
     const coords = route.coordinates;
     const distanzKm = (route.summary.totalDistance / 1000).toFixed(2);
     
-    // Höhenmeter berechnen
+    // 1. Höhenmeter berechnen
     let aufstieg = 0, abstieg = 0;
     for (let i = 1; i < coords.length; i++) {
         let diff = (coords[i].alt || 0) - (coords[i-1].alt || 0);
         if (diff > 0) aufstieg += diff; else abstieg += Math.abs(diff);
     }
 
-    // Naturschutzgebiet-Anteil berechnen (Turf.js Magie)
-    // Wir holen uns die GeoJSON Daten aus deinem naturschutzLayer
-    // (Wir nehmen an, naturschutzLayer ist ein L.geoJSON Layer)
-    let nsgPunkte = 0;
-    const geojson = naturschutzLayer.toGeoJSON(); // Wandelt den Layer zurück in Daten
+    // 2. Schutzgebiet-Anteil berechnen (Die neue, flexible Funktion!)
+    const schutzGebieteGeoJSON = holeAlleSchutzgebieteGeoJSON(); 
+    let schutzPunkte = 0;
     
     coords.forEach(p => {
         const pt = turf.point([p.lng, p.lat]);
-        // Prüfen, ob der Punkt in irgendeinem der NSG-Polygone liegt
-        const inNSG = geojson.features.some(f => turf.booleanPointInPolygon(pt, f));
-        if (inNSG) nsgPunkte++;
+        // Prüfen, ob der Punkt in IRGENDEINEM der gesammelten Schutzgebiete liegt
+        // Wir müssen sicherstellen, dass die Features existieren (Schutz gegen leere Daten)
+        const inSchutz = schutzGebieteGeoJSON.features.some(f => turf.booleanPointInPolygon(pt, f));
+        if (inSchutz) schutzPunkte++;
     });
 
-    const nsgAnteil = Math.round((nsgPunkte / coords.length) * 100);
+    const schutzAnteil = coords.length > 0 ? Math.round((schutzPunkte / coords.length) * 100) : 0;
 
-    console.log(`Route: ${distanzKm}km, NSG: ${nsgAnteil}%`);
+    console.log(`Route: ${distanzKm}km, Anteil Schutzgebiete: ${schutzAnteil}%`);
     
-    // Jetzt zeigen wir das Speichern-Fenster
-    zeigeSpeichernDialog(distanzKm, aufstieg, abstieg, nsgAnteil, coords);
+    // 3. Dialog anzeigen
+    zeigeSpeichernDialog(distanzKm, aufstieg, abstieg, schutzAnteil, coords);
 }
 //===Das "Speichern"-Dialog. Um die Route zu benennen, bauen wir ein kleines Formular, das aufpoppt, sobald die Berechnung fertig ist
 function zeigeSpeichernDialog(dist, auf, ab, nsg, coords) {
