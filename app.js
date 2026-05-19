@@ -14,8 +14,8 @@ const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 const waldLayer = L.layerGroup().addTo(map);
 const fundstellenLayer = L.layerGroup().addTo(map); 
 const stationenLayer = L.layerGroup().addTo(map); // NEU: Unsere Sammelmappe für die Wetterpunkte
-const naturschutzLayer = L.layerGroup(); // Ohne .addTo(map), damit die Karte am Start nicht zu voll ist
-const nationalparkLayer = L.layerGroup(); // Ohne .addTo(map)
+const naturschutzLayer = L.layerGroup().addTo(map); 
+const nationalparkLayer = L.layerGroup().addTo(map); 
 
 const regenRadarDWD = L.tileLayer.wms('https://maps.dwd.de/geoserver/dwd/wms', {
     layers: 'dwd:Niederschlagsradar', 
