@@ -19,7 +19,7 @@ const nationalparkLayer = L.layerGroup().addTo(map);
 
 //===2.1.1 Schutzgebiete
 waldLayer.isSchutzgebiet = true;
-waldLayer.isSchutzgebiet = true;
+naturschutzLayer.isSchutzgebiet = true;
 nationalparkLayer.isSchutzgebiet = true;
 
 const regenRadarDWD = L.tileLayer.wms('https://maps.dwd.de/geoserver/dwd/wms', {
