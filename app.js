@@ -131,8 +131,8 @@ map.locate({setView: true, maxZoom: 13});
 
 // === 5. Live-Wetter, Ortsname & 7-Tage-Regen per Mausklick ===
 map.on('click', function(e) {
-    const lat = e.latlng.lat;
-    const lng = e.latlng.lng;
+    const latR = lat.toFixed(6);
+    const lngR = lng.toFixed(6);
 
     const ladePopup = L.popup()
         .setLatLng(e.latlng)
@@ -215,6 +215,9 @@ map.on('contextmenu', function(e) {
             <input type="file" id="neu-foto" accept="image/*" multiple style="width: 100%; margin-bottom: 10px;"><br>
             <button onclick="speichereNeuenFund(${lat}, ${lng})" style="width: 100%; padding: 8px; background: #2ca25f; color: white; border: none; border-radius: 5px; cursor: pointer;">
                 Speichern & Hochladen
+            </button>
+            <button onclick="speichereAuto(${latR}, ${lngR})" ...>
+                🚗 Hier Auto parken
             </button>
             <div id="upload-status" style="margin-top: 10px; font-size: 0.9em; font-weight: bold;"></div>
         </div>
