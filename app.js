@@ -522,95 +522,91 @@ function holeAlleSchutzgebieteGeoJSON() {
     return turf.featureCollection(alleFeatures);
 }
 
-// === 9. Das Auto-Feature (Parken, Icon & Menü) ===
-window.meinAutoStandort = null; 
-let autoMarker = null; 
+// === 9. Das Auto-Feature ===
+window.meinAutoStandort = null;
+let autoMarker = null;
 
 const autoIcon = L.divIcon({
     html: '<div style="font-size: 35px; line-height: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.4); text-align:center;">🚗</div>',
-    className: 'mein-auto', 
+    className: 'mein-auto',
     iconSize: [35, 35],
-    iconAnchor: [17, 17], 
-    popupAnchor: [0, -20] 
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -20]
 });
 
-// Funktion 1: Auto parken und ins Notizbuch schreiben
-window.speichereAuto = function(lat, lng) {
-    window.meinAutoStandort = L.latLng(lat, lng); 
-    if(autoMarker) map.removeLayer(autoMarker); 
-    
-    // Wetter-Popup schließen, bevor das Auto-Popup öffnet
-    map.closePopup(); 
-    
-    // Koordinaten ins Notizbuch des Browsers schreiben
-    localStorage.setItem('meinParkplatz', JSON.stringify({ lat: lat, lng: lng }));
-
-    const autoMenue = `
+function erstelleAutoMenue() {
+    return `
         <div style="text-align:center; font-family: sans-serif; min-width: 150px;">
-            <b style="font-size: 1.1em;">Dein Auto 🚗</b><br><hr style="margin:8px 0; border:0; border-top:1px solid #ccc;">
-            <button onclick="routeZumAuto()" style="width:100%; margin-bottom:8px; background:#2ca25f; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">
+            <b style="font-size: 1.1em;">Dein Auto 🚗</b>
+            <hr style="margin:8px 0; border:0; border-top:1px solid #ccc;">
+            <button id="btn-route-auto" style="width:100%; margin-bottom:8px; background:#2ca25f; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">
                 🚶 Bring mich hin!
             </button>
-            <button onclick="loescheAuto()" style="width:100%; background:#ff3333; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">
+            <button id="btn-loesche-auto" style="width:100%; background:#ff3333; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">
                 🗑️ Auto löschen
             </button>
         </div>
     `;
+}
+
+// Globaler popupopen-Listener — fängt ALLE Popups ab
+map.on('popupopen', function() {
+    setTimeout(function() {
+        const btnRoute = document.getElementById('btn-route-auto');
+        const btnLoesch = document.getElementById('btn-loesche-auto');
+        if (btnRoute) btnRoute.addEventListener('click', routeZumAuto);
+        if (btnLoesch) btnLoesch.addEventListener('click', loescheAuto);
+    }, 50);
+});
+
+// Funktion 1: Auto parken
+window.speichereAuto = function(lat, lng) {
+    window.meinAutoStandort = L.latLng(lat, lng);
+    if (autoMarker) map.removeLayer(autoMarker);
+    map.closePopup();
+    localStorage.setItem('meinParkplatz', JSON.stringify({ lat: lat, lng: lng }));
 
     autoMarker = L.marker(window.meinAutoStandort, { icon: autoIcon })
         .addTo(map)
-        .bindPopup(autoMenue)
+        .bindPopup(erstelleAutoMenue())
         .openPopup();
 };
 
-// Funktion 2: Route vom aktuellen GPS-Standort zum Auto berechnen
+// Funktion 2: Route zum Auto
 window.routeZumAuto = function() {
-    if(!window.meinAutoStandort) return;
+    if (!window.meinAutoStandort) return;
     navigator.geolocation.getCurrentPosition(function(pos) {
         window.routenPlaner.setWaypoints([
-            L.latLng(pos.coords.latitude, pos.coords.longitude), 
-            window.meinAutoStandort 
-        ]);
-        map.closePopup(); 
-    }, function(error) {
-        alert("📍 GPS-Ortung fehlgeschlagen! Ich verwende stattdessen deinen Karten-Mittelpunkt als Start.");
-        window.routenPlaner.setWaypoints([
-            map.getCenter(),
+            L.latLng(pos.coords.latitude, pos.coords.longitude),
             window.meinAutoStandort
         ]);
+        map.closePopup();
+    }, function() {
+        window.routenPlaner.setWaypoints([map.getCenter(), window.meinAutoStandort]);
         map.closePopup();
     });
 };
 
-// Funktion 3: Auto von der Karte fegen UND aus dem Notizbuch radieren
+// Funktion 3: Auto löschen
 window.loescheAuto = function() {
-    if(autoMarker) {
-        map.removeLayer(autoMarker); 
-        window.meinAutoStandort = null; 
+    if (autoMarker) {
+        map.removeLayer(autoMarker);
+        window.meinAutoStandort = null;
         autoMarker = null;
-        
         localStorage.removeItem('meinParkplatz');
     }
 };
 
-// Funktion 4: Beim Starten der Seite im Notizbuch nachsehen
+// Funktion 4: Beim Seitenstart laden
 window.ladeAutoBeimStart = function() {
-    const gemerkterParkplatzText = localStorage.getItem('meinParkplatz');
-    
-    if (gemerkterParkplatzText) {
-        const coords = JSON.parse(gemerkterParkplatzText);
+    const gespeichert = localStorage.getItem('meinParkplatz');
+    if (gespeichert) {
+        const coords = JSON.parse(gespeichert);
         window.meinAutoStandort = L.latLng(coords.lat, coords.lng);
-        
-        const autoMenue = `
-            <div style="text-align:center; font-family: sans-serif; min-width: 150px;">
-                <b style="font-size: 1.1em;">Dein Auto 🚗</b><br><hr style="margin:8px 0; border:0; border-top:1px solid #ccc;">
-                <button onclick="routeZumAuto()" style="width:100%; margin-bottom:8px; background:#2ca25f; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">🚶 Bring mich hin!</button>
-                <button onclick="loescheAuto()" style="width:100%; background:#ff3333; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">🗑️ Auto löschen</button>
-            </div>`;
-            
-        autoMarker = L.marker(window.meinAutoStandort, { icon: autoIcon }).addTo(map).bindPopup(autoMenue);
+        autoMarker = L.marker(window.meinAutoStandort, { icon: autoIcon })
+            .addTo(map)
+            .bindPopup(erstelleAutoMenue());
     }
 };
 
-// Hier rufen wir die Funktion EINMAL ganz am Anfang auf, wenn die Karte lädt
 ladeAutoBeimStart();
