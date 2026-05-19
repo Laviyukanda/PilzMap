@@ -583,5 +583,3 @@ window.loescheAuto = function() {
         autoMarker = null;
     }
 };
-
-};
