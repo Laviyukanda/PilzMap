@@ -776,3 +776,16 @@ function holeAlleSchutzgebieteGeoJSON() {
     // Turf.js braucht dieses Format, um darin zu "rechnen"
     return turf.featureCollection(alleFeatures);
 }
+// === 9. Das Auto-Feature (Parken, Icon & Menü) ===
+
+window.meinAutoStandort = null; // Hier merken wir uns die Koordinaten
+let autoMarker = null; // Hier merken wir uns die Figur auf der Karte
+
+// Wir basteln ein eigenes Icon aus einem Emoji (Leaflet DivIcon)
+const autoIcon = L.divIcon({
+    html: '<div style="font-size: 35px; line-height: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.4);">🚗</div>',
+    className: 'mein-auto', // Verhindert den weißen Standard-Hintergrund
+    iconSize: [35, 35],
+    iconAnchor: [17, 17], // Die Mitte des Emojis ist exakt die Koordinate
+    popupAnchor: [0, -20] // Das Menü ploppt leicht über dem Dach auf
+});
