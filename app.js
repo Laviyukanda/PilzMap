@@ -17,6 +17,11 @@ const stationenLayer = L.layerGroup().addTo(map); // NEU: Unsere Sammelmappe fü
 const naturschutzLayer = L.layerGroup().addTo(map); 
 const nationalparkLayer = L.layerGroup().addTo(map); 
 
+//===2.1.1 Schutzgebiete
+waldLayer.isSchutzgebiet = true;
+waldLayer.isSchutzgebiet = true;
+nationalparkLayer.isSchutzgebiet = true;
+
 const regenRadarDWD = L.tileLayer.wms('https://maps.dwd.de/geoserver/dwd/wms', {
     layers: 'dwd:Niederschlagsradar', 
     format: 'image/png',
@@ -661,13 +666,131 @@ if (typeof L.Control.geocoder === 'function') {
     }).addTo(map);
 }
 
-// Werkzeug 2: Der Routenplaner für die Auto-Navigation (oben rechts)
+// === Werkzeug 2: Der Routenplaner mit Wander-Profil (ORS) ===
+const ORS_API_KEY = "DEIN_API_KEY_HIER_EINTRAGEN"; // Hier deinen Schlüssel einfügen
+
 window.routenPlaner = L.Routing.control({
-    waypoints: [], // Startet ohne Route
-    routeWhileDragging: true, 
-    geocoder: L.Control.Geocoder.nominatim(), 
-    language: 'de', 
-    show: false, // WICHTIG: Startet eingeklappt, damit er nicht den Bildschirm blockiert!
-    addWaypoints: false, // Verhindert, dass man aus Versehen beim Klicken neue Wegpunkte setzt
-    fitSelectedRoutes: true 
+    waypoints: [],
+    // WICHTIG: Hier binden wir das Wander-Profil an
+    router: L.Routing.openrouteservice(ORS_API_KEY, {
+        profile: 'foot-hiking', // Das ist das magische Profil für Wanderwege!
+        format: 'json'
+    }),
+    routeWhileDragging: true,
+    show: false,
+    addWaypoints: true, // Lass das auf 'true', damit du im Wald Punkte korrigieren kannst
+    fitSelectedRoutes: true,
+    language: 'de'
 }).addTo(map);
+
+function berechneWanderStatistik(route) {
+    // 1. Koordinaten der Route extrahieren
+    const koordinaten = route.coordinates; 
+    
+    // 2. Distanz in KM
+    const distanzKm = (route.summary.totalDistance / 1000).toFixed(2);
+    
+    // 3. Höhenmeter (Hier kommt später die Magie, die die Höhen aus den Punkten liest)
+    // Hinweis: OSRM/ORS liefern in route.coordinates bei jedem Punkt ein .alt oder .ele
+    let aufstieg = 0;
+    let abstieg = 0;
+    
+    for (let i = 1; i < koordinaten.length; i++) {
+        let diff = (koordinaten[i].alt || 0) - (koordinaten[i-1].alt || 0);
+        if (diff > 0) aufstieg += diff;
+        else abstieg += Math.abs(diff);
+    }
+
+    console.log(`Statistik: ${distanzKm}km, Auf: ${aufstieg.toFixed(0)}m, Ab: ${abstieg.toFixed(0)}m`);
+    
+    // --- NÄCHSTER SCHRITT (Vorschau): ---
+    // Hier rufen wir jetzt die Funktion auf, die prüft, wie viel NSG auf der Strecke liegt
+    // und dann den "In Supabase speichern"-Button anzeigt.
+}
+async function berechneWanderStatistik(route) {
+    const coords = route.coordinates;
+    const distanzKm = (route.summary.totalDistance / 1000).toFixed(2);
+    
+    // Höhenmeter berechnen
+    let aufstieg = 0, abstieg = 0;
+    for (let i = 1; i < coords.length; i++) {
+        let diff = (coords[i].alt || 0) - (coords[i-1].alt || 0);
+        if (diff > 0) aufstieg += diff; else abstieg += Math.abs(diff);
+    }
+
+    // Naturschutzgebiet-Anteil berechnen (Turf.js Magie)
+    // Wir holen uns die GeoJSON Daten aus deinem naturschutzLayer
+    // (Wir nehmen an, naturschutzLayer ist ein L.geoJSON Layer)
+    let nsgPunkte = 0;
+    const geojson = naturschutzLayer.toGeoJSON(); // Wandelt den Layer zurück in Daten
+    
+    coords.forEach(p => {
+        const pt = turf.point([p.lng, p.lat]);
+        // Prüfen, ob der Punkt in irgendeinem der NSG-Polygone liegt
+        const inNSG = geojson.features.some(f => turf.booleanPointInPolygon(pt, f));
+        if (inNSG) nsgPunkte++;
+    });
+
+    const nsgAnteil = Math.round((nsgPunkte / coords.length) * 100);
+
+    console.log(`Route: ${distanzKm}km, NSG: ${nsgAnteil}%`);
+    
+    // Jetzt zeigen wir das Speichern-Fenster
+    zeigeSpeichernDialog(distanzKm, aufstieg, abstieg, nsgAnteil, coords);
+}
+//===Das "Speichern"-Dialog. Um die Route zu benennen, bauen wir ein kleines Formular, das aufpoppt, sobald die Berechnung fertig ist
+function zeigeSpeichernDialog(dist, auf, ab, nsg, coords) {
+    const popupHtml = `
+        <div style="font-family:sans-serif; min-width:200px;">
+            <h4>Wanderung speichern?</h4>
+            <input type="text" id="route-name" placeholder="Name der Route..." style="width:100%"><br><br>
+            <p style="font-size:0.9em">
+                📏 ${dist} km | 🏔️ ${auf.toFixed(0)}m Auf | 🌲 ${nsg}% NSG
+            </p>
+            <button onclick="speichereRouteInSupabase('${dist}', '${auf.toFixed(0)}', '${ab.toFixed(0)}', '${nsg}', '${JSON.stringify(coords)}')">
+                💾 In Cloud speichern
+            </button>
+        </div>
+    `;
+    L.popup().setLatLng(coords[Math.floor(coords.length/2)]).setContent(popupHtml).openOn(map);
+}
+//==Supabase-Upload in die Datenbank-Tabelle
+window.speichereRouteInSupabase = async function(dist, auf, ab, nsg, coordsJson) {
+    const name = document.getElementById('route-name').value;
+    
+    const { data, error } = await _supabase.from('wanderrouten').insert([{
+        name: name,
+        distanz_km: parseFloat(dist),
+        hoehenmeter_auf: parseInt(auf),
+        hoehenmeter_ab: parseInt(ab),
+        anteil_nsg_prozent: parseInt(nsg),
+        koordinaten: JSON.parse(coordsJson)
+    }]);
+
+    if (!error) {
+        alert("Route gespeichert!");
+        map.closePopup();
+    } else {
+        console.error("Fehler:", error);
+    }
+};
+function holeAlleSchutzgebieteGeoJSON() {
+    let alleFeatures = [];
+
+    // Wir fragen die Karte: "Welche Layer hast du alle?"
+    map.eachLayer(function(layer) {
+        // Prüfen: Hat der Layer unser Etikett?
+        if (layer.isSchutzgebiet === true) {
+            // Jeden Layer durchlaufen und die Daten (Features) sammeln
+            layer.eachLayer(function(subLayer) {
+                if (subLayer.toGeoJSON) {
+                    alleFeatures.push(subLayer.toGeoJSON());
+                }
+            });
+        }
+    });
+
+    // Wir fassen alles in einer GeoJSON FeatureCollection zusammen
+    // Turf.js braucht dieses Format, um darin zu "rechnen"
+    return turf.featureCollection(alleFeatures);
+}
