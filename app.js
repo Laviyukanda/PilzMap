@@ -13,7 +13,7 @@ const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // === 2.1. Leere Sammelmappen & WMS anlegen ===
 const waldLayer = L.layerGroup().addTo(map);
 const fundstellenLayer = L.layerGroup().addTo(map); 
-const stationenLayer = L.layerGroup().addTo(map); // NEU: Unsere Sammelmappe für die Wetterpunkte
+const stationenLayer = L.layerGroup(); // NEU: Unsere Sammelmappe für die Wetterpunkte
 const naturschutzLayer = L.layerGroup().addTo(map); 
 const nationalparkLayer = L.layerGroup().addTo(map); 
 
