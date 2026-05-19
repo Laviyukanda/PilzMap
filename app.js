@@ -64,6 +64,7 @@ window.loescheAuto = function() {
         window.meinAutoStandort = null; 
         autoMarker = null;
     }
+};
 // === 2. Basiskarte (OpenStreetMap) hinzufügen ===
 const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
