@@ -497,8 +497,8 @@ async function ladePilzeAusCloud() {
 
 ladePilzeAusCloud();
 
-// === 8. Schrotflinten-Modus: 7-Tage-Regen an festen Stationen in BW ===
-// === 8. Schrotflinten-Modus: 7-Tage-Regen an 30 festen Stationen in BW (Gänsemarsch-Laden) ===
+// === 7. Schrotflinten-Modus: 7-Tage-Regen an festen Stationen in BW ===
+// === 7. Schrotflinten-Modus: 7-Tage-Regen an 30 festen Stationen in BW (Gänsemarsch-Laden) ===
 
 // Ein dichtes Netz aus 30 strategisch verteilten Koordinaten in Baden-Württemberg
 const wetterStationen = [
@@ -651,13 +651,23 @@ map.on('overlayremove', function(event) {
     }
 });
 
-// === 7. Das Suchfeld (Geocoder) einbauen ===
-// Sicherheits-Check, falls die HTML-Einbindung fehlschlägt
+// === 8. Suchfeld (Simpel) & Routenplaner (Auto) ===
+
+// Werkzeug 1: Die simple Lupe für die schnelle Orts-Suche (oben links)
 if (typeof L.Control.geocoder === 'function') {
     L.Control.geocoder({
         position: 'topleft',
         placeholder: 'Ort oder Wald suchen...'
     }).addTo(map);
-} else {
-    console.warn("Suchfeld-Plugin wurde nicht geladen! Hast du es in der index.html eingebunden?");
 }
+
+// Werkzeug 2: Der Routenplaner für die Auto-Navigation (oben rechts)
+window.routenPlaner = L.Routing.control({
+    waypoints: [], // Startet ohne Route
+    routeWhileDragging: true, 
+    geocoder: L.Control.Geocoder.nominatim(), 
+    language: 'de', 
+    show: false, // WICHTIG: Startet eingeklappt, damit er nicht den Bildschirm blockiert!
+    addWaypoints: false, // Verhindert, dass man aus Versehen beim Klicken neue Wegpunkte setzt
+    fitSelectedRoutes: true 
+}).addTo(map);
