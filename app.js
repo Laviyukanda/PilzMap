@@ -198,11 +198,18 @@ map.on('click', function(e) {
                         regenSumme = Math.round(regenSumme * 10) / 10;
 
                         ladePopup.setContent(`
-                            📍 <b>${ortsName}</b><br>
-                            🌡️ Temperatur: ${temperatur} °C<br>
-                            💨 Wind: ${wind} km/h<br>
-                            <hr style="margin: 5px 0;">
-                            🌧️ <b>Regen (letzte 7 Tage): ${regenSumme} mm</b>
+                            <div style="text-align: center;">
+                                📍 <b>${ortsName}</b><br>
+                                🌡️ ${temperatur} °C | 💨 ${wind} km/h<br>
+                                🌧️ <b>Regen (7 Tage): ${regenSumme} mm</b>
+                                <hr style="margin: 10px 0;">
+                                <button onclick="speichereAuto(${lat}, ${lng})" style="width: 100%; padding: 5px; margin-bottom: 5px; background: #3388ff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    🚗 Hier Auto parken
+                                </button>
+                                <button onclick="routeZumAuto(${lat}, ${lng})" style="width: 100%; padding: 5px; background: #ffcc00; color: black; border: none; border-radius: 4px; cursor: pointer;">
+                                    🚶 Route zum Auto
+                                </button>
+                                </div>
                         `);
                     } else {
                         ladePopup.setContent(`📍 <b>${ortsName}</b><br>❌ Keine Wetterdaten gefunden.`);
