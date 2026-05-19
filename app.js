@@ -4,6 +4,66 @@ proj4.defs("EPSG:25832", "+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0
 // === 1. Karte initialisieren ===
 const map = L.map('map').setView([48.9, 9.2], 8);
 
+// === 9. Das Auto-Feature (Parken, Icon & Menü) ===
+window.meinAutoStandort = null; 
+let autoMarker = null; 
+
+const autoIcon = L.divIcon({
+    html: '<div style="font-size: 35px; line-height: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.4); text-align:center;">🚗</div>',
+    className: 'mein-auto', 
+    iconSize: [35, 35],
+    iconAnchor: [17, 17], 
+    popupAnchor: [0, -20] 
+});
+
+window.speichereAuto = function(lat, lng) {
+    window.meinAutoStandort = L.latLng(lat, lng); 
+    if(autoMarker) map.removeLayer(autoMarker); 
+    
+    const autoMenue = `
+        <div style="text-align:center; font-family: sans-serif; min-width: 150px;">
+            <b style="font-size: 1.1em;">Dein Auto 🚗</b><br><hr style="margin:8px 0; border:0; border-top:1px solid #ccc;">
+            <button onclick="routeZumAuto()" style="width:100%; margin-bottom:8px; background:#2ca25f; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">
+                🚶 Bring mich hin!
+            </button>
+            <button onclick="loescheAuto()" style="width:100%; background:#ff3333; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">
+                🗑️ Auto löschen
+            </button>
+        </div>
+    `;
+
+    autoMarker = L.marker(window.meinAutoStandort, { icon: autoIcon })
+        .addTo(map)
+        .bindPopup(autoMenue)
+        .openPopup();
+        
+    map.closePopup(); 
+};
+
+window.routeZumAuto = function() {
+    if(!window.meinAutoStandort) return;
+    navigator.geolocation.getCurrentPosition(function(pos) {
+        window.routenPlaner.setWaypoints([
+            L.latLng(pos.coords.latitude, pos.coords.longitude), 
+            window.meinAutoStandort 
+        ]);
+        map.closePopup(); 
+    }, function(error) {
+        alert("📍 GPS-Ortung fehlgeschlagen! Ich verwende stattdessen deinen Karten-Mittelpunkt als Start.");
+        window.routenPlaner.setWaypoints([
+            map.getCenter(),
+            window.meinAutoStandort
+        ]);
+        map.closePopup();
+    });
+};
+
+window.loescheAuto = function() {
+    if(autoMarker) {
+        map.removeLayer(autoMarker); 
+        window.meinAutoStandort = null; 
+        autoMarker = null;
+    }
 // === 2. Basiskarte (OpenStreetMap) hinzufügen ===
 const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -522,64 +582,5 @@ function holeAlleSchutzgebieteGeoJSON() {
     return turf.featureCollection(alleFeatures);
 }
 
-// === 9. Das Auto-Feature (Parken, Icon & Menü) ===
-window.meinAutoStandort = null; 
-let autoMarker = null; 
 
-const autoIcon = L.divIcon({
-    html: '<div style="font-size: 35px; line-height: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.4); text-align:center;">🚗</div>',
-    className: 'mein-auto', 
-    iconSize: [35, 35],
-    iconAnchor: [17, 17], 
-    popupAnchor: [0, -20] 
-});
-
-window.speichereAuto = function(lat, lng) {
-    window.meinAutoStandort = L.latLng(lat, lng); 
-    if(autoMarker) map.removeLayer(autoMarker); 
-    
-    const autoMenue = `
-        <div style="text-align:center; font-family: sans-serif; min-width: 150px;">
-            <b style="font-size: 1.1em;">Dein Auto 🚗</b><br><hr style="margin:8px 0; border:0; border-top:1px solid #ccc;">
-            <button onclick="routeZumAuto()" style="width:100%; margin-bottom:8px; background:#2ca25f; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">
-                🚶 Bring mich hin!
-            </button>
-            <button onclick="loescheAuto()" style="width:100%; background:#ff3333; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">
-                🗑️ Auto löschen
-            </button>
-        </div>
-    `;
-
-    autoMarker = L.marker(window.meinAutoStandort, { icon: autoIcon })
-        .addTo(map)
-        .bindPopup(autoMenue)
-        .openPopup();
-        
-    map.closePopup(); 
-};
-
-window.routeZumAuto = function() {
-    if(!window.meinAutoStandort) return;
-    navigator.geolocation.getCurrentPosition(function(pos) {
-        window.routenPlaner.setWaypoints([
-            L.latLng(pos.coords.latitude, pos.coords.longitude), 
-            window.meinAutoStandort 
-        ]);
-        map.closePopup(); 
-    }, function(error) {
-        alert("📍 GPS-Ortung fehlgeschlagen! Ich verwende stattdessen deinen Karten-Mittelpunkt als Start.");
-        window.routenPlaner.setWaypoints([
-            map.getCenter(),
-            window.meinAutoStandort
-        ]);
-        map.closePopup();
-    });
-};
-
-window.loescheAuto = function() {
-    if(autoMarker) {
-        map.removeLayer(autoMarker); 
-        window.meinAutoStandort = null; 
-        autoMarker = null;
-    }
 };
