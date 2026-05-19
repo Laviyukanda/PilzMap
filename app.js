@@ -789,3 +789,52 @@ const autoIcon = L.divIcon({
     iconAnchor: [17, 17], // Die Mitte des Emojis ist exakt die Koordinate
     popupAnchor: [0, -20] // Das Menü ploppt leicht über dem Dach auf
 });
+// Funktion 1: Auto parken und das Klick-Menü anhängen
+window.speichereAuto = function(lat, lng) {
+    window.meinAutoStandort = L.latLng(lat, lng); 
+    
+    if(autoMarker) map.removeLayer(autoMarker); // Altes Auto abschleppen, falls eins existiert
+    
+    // Das HTML-Menü, das erscheint, wenn man AUF DAS AUTO klickt
+    const autoMenue = `
+        <div style="text-align:center; font-family: sans-serif; min-width: 150px;">
+            <b style="font-size: 1.1em;">Dein Auto 🚗</b><br><br>
+            <button onclick="routeZumAuto()" style="width:100%; margin-bottom:8px; background:#2ca25f; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">
+                🚶 Bring mich hin!
+            </button>
+            <button onclick="loescheAuto()" style="width:100%; background:#ff3333; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">
+                🗑️ Auto löschen
+            </button>
+        </div>
+    `;
+
+    // Auto mit dem Emoji-Icon auf die Karte setzen
+    autoMarker = L.marker(window.meinAutoStandort, { icon: autoIcon })
+        .addTo(map)
+        .bindPopup(autoMenue)
+        .openPopup();
+        
+    map.closePopup(); // Schließt das Wetter-Popup, in dem wir gerade geklickt haben
+};
+// Funktion 2: Route vom aktuellen GPS-Standort zum Auto berechnen
+window.routeZumAuto = function() {
+    // Wir fragen das Handy/den PC nach der echten, aktuellen GPS-Position
+    navigator.geolocation.getCurrentPosition(function(pos) {
+        window.routenPlaner.setWaypoints([
+            L.latLng(pos.coords.latitude, pos.coords.longitude), // Start (Dein echter Standort)
+            window.meinAutoStandort // Ziel (Dein Auto)
+        ]);
+        map.closePopup(); // Auto-Menü schließen
+    }, function(error) {
+        alert("📍 Konnte deinen Standort nicht orten! Bitte erlaube GPS im Browser.");
+    });
+};
+
+// Funktion 3: Auto von der Karte fegen
+window.loescheAuto = function() {
+    if(autoMarker) {
+        map.removeLayer(autoMarker); // Marker löschen
+        window.meinAutoStandort = null; // Koordinaten vergessen
+        autoMarker = null;
+    }
+};
