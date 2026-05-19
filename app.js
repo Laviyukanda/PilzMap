@@ -590,3 +590,30 @@ window.loescheAuto = function() {
         autoMarker = null;
     }
 };
+// Funktion 1.5 (NEU): Beim Starten der Seite im Notizbuch nachsehen
+window.ladeAutoBeimStart = function() {
+    // Wir fragen das Notizbuch nach der Seite 'meinParkplatz'
+    const gemerkterParkplatzText = localStorage.getItem('meinParkplatz');
+    
+    // Wenn da etwas steht (also nicht null ist)
+    if (gemerkterParkplatzText) {
+        // Text wieder zurück in Koordinaten-Zahlen verwandeln
+        const coords = JSON.parse(gemerkterParkplatzText);
+        
+        // Wir parken das Auto wieder (ohne dass der Nutzer klicken muss)
+        window.meinAutoStandort = L.latLng(coords.lat, coords.lng);
+        
+        // Das gleiche Menü wie beim normalen Speichern
+        const autoMenue = `
+            <div style="text-align:center; font-family: sans-serif; min-width: 150px;">
+                <b style="font-size: 1.1em;">Dein Auto 🚗</b><br><hr style="margin:8px 0; border:0; border-top:1px solid #ccc;">
+                <button onclick="routeZumAuto()" style="width:100%; margin-bottom:8px; background:#2ca25f; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">🚶 Bring mich hin!</button>
+                <button onclick="loescheAuto()" style="width:100%; background:#ff3333; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">🗑️ Auto löschen</button>
+            </div>`;
+            
+        autoMarker = L.marker(window.meinAutoStandort, { icon: autoIcon }).addTo(map).bindPopup(autoMenue);
+    }
+};
+
+// Hier rufen wir die Funktion EINMAL ganz am Anfang auf, wenn die Karte lädt
+ladeAutoBeimStart();
