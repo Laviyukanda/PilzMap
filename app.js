@@ -534,10 +534,17 @@ const autoIcon = L.divIcon({
     popupAnchor: [0, -20] 
 });
 
+// Funktion 1: Auto parken und das Klick-Menü anhängen
 window.speichereAuto = function(lat, lng) {
     window.meinAutoStandort = L.latLng(lat, lng); 
     if(autoMarker) map.removeLayer(autoMarker); 
     
+    // === NEU: Wir schreiben die Koordinaten ins Notizbuch des Browsers ===
+    // JSON.stringify übersetzt unsere Koordinaten in einfachen Text, 
+    // denn das Notizbuch kann nur Text lesen!
+    localStorage.setItem('meinParkplatz', JSON.stringify({ lat: lat, lng: lng }));
+    // ====================================================================
+
     const autoMenue = `
         <div style="text-align:center; font-family: sans-serif; min-width: 150px;">
             <b style="font-size: 1.1em;">Dein Auto 🚗</b><br><hr style="margin:8px 0; border:0; border-top:1px solid #ccc;">
