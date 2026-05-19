@@ -534,16 +534,16 @@ const autoIcon = L.divIcon({
     popupAnchor: [0, -20] 
 });
 
-// Funktion 1: Auto parken und das Klick-Menü anhängen
+// Funktion 1: Auto parken und ins Notizbuch schreiben
 window.speichereAuto = function(lat, lng) {
     window.meinAutoStandort = L.latLng(lat, lng); 
     if(autoMarker) map.removeLayer(autoMarker); 
     
-    // === NEU: Wir schreiben die Koordinaten ins Notizbuch des Browsers ===
-    // JSON.stringify übersetzt unsere Koordinaten in einfachen Text, 
-    // denn das Notizbuch kann nur Text lesen!
+    // Wetter-Popup schließen, bevor das Auto-Popup öffnet
+    map.closePopup(); 
+    
+    // Koordinaten ins Notizbuch des Browsers schreiben
     localStorage.setItem('meinParkplatz', JSON.stringify({ lat: lat, lng: lng }));
-    // ====================================================================
 
     const autoMenue = `
         <div style="text-align:center; font-family: sans-serif; min-width: 150px;">
@@ -561,10 +561,9 @@ window.speichereAuto = function(lat, lng) {
         .addTo(map)
         .bindPopup(autoMenue)
         .openPopup();
-        
-    map.closePopup(); 
 };
 
+// Funktion 2: Route vom aktuellen GPS-Standort zum Auto berechnen
 window.routeZumAuto = function() {
     if(!window.meinAutoStandort) return;
     navigator.geolocation.getCurrentPosition(function(pos) {
@@ -583,27 +582,25 @@ window.routeZumAuto = function() {
     });
 };
 
+// Funktion 3: Auto von der Karte fegen UND aus dem Notizbuch radieren
 window.loescheAuto = function() {
     if(autoMarker) {
         map.removeLayer(autoMarker); 
         window.meinAutoStandort = null; 
         autoMarker = null;
+        
+        localStorage.removeItem('meinParkplatz');
     }
 };
-// Funktion 1.5 (NEU): Beim Starten der Seite im Notizbuch nachsehen
+
+// Funktion 4: Beim Starten der Seite im Notizbuch nachsehen
 window.ladeAutoBeimStart = function() {
-    // Wir fragen das Notizbuch nach der Seite 'meinParkplatz'
     const gemerkterParkplatzText = localStorage.getItem('meinParkplatz');
     
-    // Wenn da etwas steht (also nicht null ist)
     if (gemerkterParkplatzText) {
-        // Text wieder zurück in Koordinaten-Zahlen verwandeln
         const coords = JSON.parse(gemerkterParkplatzText);
-        
-        // Wir parken das Auto wieder (ohne dass der Nutzer klicken muss)
         window.meinAutoStandort = L.latLng(coords.lat, coords.lng);
         
-        // Das gleiche Menü wie beim normalen Speichern
         const autoMenue = `
             <div style="text-align:center; font-family: sans-serif; min-width: 150px;">
                 <b style="font-size: 1.1em;">Dein Auto 🚗</b><br><hr style="margin:8px 0; border:0; border-top:1px solid #ccc;">
