@@ -463,7 +463,7 @@ if (typeof L.Control.geocoder === 'function') {
 }
 
 // 🚨 HIER fügst du deinen kostenlosen Key von graphhopper.com ein:
-const GH_API_KEY = 'HIER_DEINEN_KEY_EINTRAGEN'; 
+const GH_API_KEY = '628e151d-3f4d-4914-885c-92fe701e71f9'; 
 
 window.routenPlaner = L.Routing.control({
     waypoints: [],
