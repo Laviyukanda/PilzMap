@@ -436,14 +436,10 @@ button, a {
 
     /* Leaflet Popup-Schließen-Button */
     .leaflet-popup-close-button {
-        width: 32px !important;
-        height: 32px !important;
-        font-size: 20px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        top: 4px !important;
-        right: 4px !important;
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 18px !important;
+        line-height: 28px !important;
     }
 
     /* Leaflet Layer-Control: Zeilen größer */
