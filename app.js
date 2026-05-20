@@ -163,52 +163,38 @@ map.on('click', function(e) {
                         for(let i = 0; i < 7; i++) { regenSumme += regenMengen[i] || 0; }
                         regenSumme = Math.round(regenSumme * 10) / 10;
 
+                        // 1. HTML setzen (OHNE onclick!)
                         ladePopup.setContent(`
-                        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; min-width: 240px; padding: 5px;">
-                            <div style="text-align: center; margin-bottom: 12px;">
-                                <h4 style="margin: 0 0 4px 0; color: #333; font-size: 1.1em;">📍 ${ortsName}</h4>
-                                <div style="font-size: 0.9em; color: #555; margin-bottom: 4px;">
-                                    🌡️ <b>${temperatur} °C</b> | 💨 ${wind} km/h
+                            <div style="font-family: 'Segoe UI', Tahoma, sans-serif; min-width: 240px; padding: 5px;">
+                                <div style="text-align: center; margin-bottom: 12px;">
+                                    <h4 style="margin: 0 0 4px 0; color: #333; font-size: 1.1em;">📍 ${ortsName}</h4>
+                                    <div style="font-size: 0.9em; color: #555; margin-bottom: 4px;">🌡️ <b>${temperatur} °C</b> | 💨 ${wind} km/h</div>
+                                    <div style="font-size: 0.85em; background: #eef5fc; color: #1e6091; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-top: 4px; font-weight: bold;">🌧️ 7-Tage-Regen: ${regenSumme} mm</div>
                                 </div>
-                                <div style="font-size: 0.85em; background: #eef5fc; color: #1e6091; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-top: 4px; font-weight: bold;">
-                                    🌧️ 7-Tage-Regen: ${regenSumme} mm
+                                <div style="border-top: 1px solid #eee; padding-top: 10px;">
+                                    <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                                        <button id="btn-add" style="flex: 1; padding: 8px 4px; background: #2ca25f; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">➕ Ziel</button>
+                                        <button id="btn-back" style="flex: 1; padding: 8px 4px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">🔙 Zurück</button>
+                                    </div>
+                                    <button id="btn-eval" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #8e44ad; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">🏁 Tour auswerten</button>
+                                    <button id="btn-clear" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #7f8c8d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8em;">🗑️ Route verwerfen</button>
                                 </div>
                             </div>
-                            <div style="border-top: 1px solid #eee; padding-top: 10px;">
-                                <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                                    <button onclick="event.stopPropagation(); window.fuegeWegpunktHinzu(${latR}, ${lngR})"
-                                        style="flex: 1; padding: 8px 4px; background: #2ca25f; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(44,162,95,0.2);">
-                                        ➕ Ziel anfügen
-                                    </button>
-                                    <button onclick="event.stopPropagation(); window.entferneLetztenWegpunkt()"
-                                        style="flex: 1; padding: 8px 4px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(231,76,60,0.2);">
-                                        🔙 Zurück
-                                    </button>
-                                </div>
-                                <button onclick="event.stopPropagation(); window.oeffneTourAuswertung()"
-                                    style="width: 100%; padding: 6px; margin-bottom: 6px; background: #8e44ad; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(142,68,173,0.2);">
-                                    🏁 Tour abschließen & Auswerten
-                                </button>
-                                <button onclick="event.stopPropagation(); window.routeKomplettLoeschen()"
-                                    style="width: 100%; padding: 6px; margin-bottom: 12px; background: #7f8c8d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8em; box-shadow: 0 2px 4px rgba(127,140,141,0.2);">
-                                    🗑️ Gesamte Route verwerfen
-                                </button>
-                            </div>
-                        </div>
-                    `);
-                        // ✅ kein setTimeout mehr hier
+                        `);
+
+                        // 2. Buttons "scharf schalten", sobald das Popup auf der Karte ist
+                        map.once('popupopen', function() {
+                            document.getElementById('btn-add').onclick = () => window.fuegeWegpunktHinzu(latR, lngR);
+                            document.getElementById('btn-back').onclick = () => window.entferneLetztenWegpunkt();
+                            document.getElementById('btn-eval').onclick = () => window.oeffneTourAuswertung();
+                            document.getElementById('btn-clear').onclick = () => window.routeKomplettLoeschen();
+                        });
 
                     } else {
-                        ladePopup.setContent(`📍 <b>${ortsName}</b><br>❌ Keine Wetterdaten gefunden.`);
+                        ladePopup.setContent(`📍 <b>${ortsName}</b><br>❌ Keine Wetterdaten.`);
                     }
                 })
-                .catch(function(fehler) {
-                    console.error(fehler);
-                    ladePopup.setContent("❌ Wetter-Daten offline.");
-                });
-        })
-        .catch(function() {
-            ladePopup.setContent("❌ Adress-Server überlastet. Bitte kurz warten.");
+                .catch(function(f) { console.error(f); });
         });
 });
 
