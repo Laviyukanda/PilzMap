@@ -174,7 +174,10 @@ map.on('click', function(e) {
                                 🔙 Zurück
                             </button>
                         </div>
-            
+                        <button onclick="event.stopPropagation(); window.oeffneTourAuswertung()"
+                            style="width: 100%; padding: 6px; margin-bottom: 6px; background: #8e44ad; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(142,68,173,0.2);">
+                            🏁 Tour abschließen & Auswerten
+                        </button>
                         <button onclick="event.stopPropagation(); window.routeKomplettLoeschen()"
                             style="width: 100%; padding: 6px; margin-bottom: 12px; background: #7f8c8d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8em; box-shadow: 0 2px 4px rgba(127,140,141,0.2);">
                             🗑️ Gesamte Route verwerfen
@@ -474,33 +477,118 @@ window.routenPlaner = L.Routing.control({
     })
 }).addTo(map);
 
-// Event-Listener: Sobald die Route fertig berechnet ist, starten wir die Analyse!
-window.routenPlaner.on('routesfound', function(e) {
-    if(e.routes && e.routes[0]) {
-        berechneWanderStatistik(e.routes[0]);
-    }
-});
+// === 10. Der stille Beobachter (Komoot-Statistiken im Hintergrund) ===
+window.aktuelleTourDaten = null; 
 
-async function berechneWanderStatistik(route) {
+window.routenPlaner.on('routesfound', function(e) {
+    const route = e.routes[0];
     const coords = route.coordinates;
-    const distanzKm = (route.summary.totalDistance / 1000).toFixed(2);
     
+    // 1. Standard-Werte vom Navi
+    const distanzKm = (route.summary.totalDistance / 1000).toFixed(2);
+    const dauerMin = Math.round(route.summary.totalTime / 60); 
+    
+    // 2. Höhenmeter berechnen
     let aufstieg = 0, abstieg = 0;
     for (let i = 1; i < coords.length; i++) {
         let diff = (coords[i].alt || 0) - (coords[i-1].alt || 0);
         if (diff > 0) aufstieg += diff; else abstieg += Math.abs(diff);
     }
 
+    // 3. Deinen genialen Naturschutz-Scanner beibehalten!
     const schutzGebieteGeoJSON = holeAlleSchutzgebieteGeoJSON(); 
     let schutzPunkte = 0;
-    
     coords.forEach(p => {
         const pt = turf.point([p.lng, p.lat]);
         if (schutzGebieteGeoJSON.features.length > 0) {
-            const inSchutz = schutzGebieteGeoJSON.features.some(f => turf.booleanPointInPolygon(pt, f));
-            if (inSchutz) schutzPunkte++;
+            if (schutzGebieteGeoJSON.features.some(f => turf.booleanPointInPolygon(pt, f))) schutzPunkte++;
         }
     });
+    const schutzAnteil = coords.length > 0 ? Math.round((schutzPunkte / coords.length) * 100) : 0;
+
+    // Alles sauber in eine Kiste packen und auf den Schreibtisch stellen
+    window.aktuelleTourDaten = {
+        distanz: distanzKm,
+        dauer: dauerMin,
+        aufstieg: Math.round(aufstieg),
+        abstieg: Math.round(abstieg),
+        nsg_anteil: schutzAnteil,
+        koordinaten: coords
+    };
+});
+
+// === 11. Das Komoot-Style Dashboard & Supabase Upload ===
+window.oeffneTourAuswertung = function() {
+    // Check: Gibt es überhaupt eine Route?
+    if (!window.aktuelleTourDaten || window.aktuelleTourDaten.koordinaten.length === 0) {
+        alert("Du hast noch keine Route geplant! Setze erst ein paar Wegpunkte. 🥾");
+        return;
+    }
+
+    const d = window.aktuelleTourDaten;
+    const stunden = Math.floor(d.dauer / 60);
+    const minuten = d.dauer % 60;
+    const dauerText = stunden > 0 ? `${stunden}h ${minuten}m` : `${minuten} Min.`;
+
+    // Das moderne Dashboard-Layout bauen
+    const html = `
+        <div style="font-family: 'Segoe UI', Tahoma, sans-serif; min-width: 250px; text-align: center;">
+            <h3 style="margin: 0 0 15px 0; color: #2ca25f;">🏔️ Tour-Zusammenfassung</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px;">
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="font-size: 0.8em; color: #7f8c8d;">Strecke</div>
+                    <div style="font-weight: bold; font-size: 1.1em; color: #2c3e50;">${d.distanz} km</div>
+                </div>
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="font-size: 0.8em; color: #7f8c8d;">Gehzeit</div>
+                    <div style="font-weight: bold; font-size: 1.1em; color: #2c3e50;">${dauerText}</div>
+                </div>
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="font-size: 0.8em; color: #7f8c8d;">Auf & Ab</div>
+                    <div style="font-weight: bold; font-size: 1em; color: #e67e22;">↗ ${d.aufstieg}m | ↘ ${d.abstieg}m</div>
+                </div>
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="font-size: 0.8em; color: #7f8c8d;">Natur pur</div>
+                    <div style="font-weight: bold; font-size: 1.1em; color: #27ae60;">${d.nsg_anteil}% NSG</div>
+                </div>
+            </div>
+
+            <input type="text" id="tour-name" placeholder="Wie nennst du diese Tour?" style="width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #bdc3c7; border-radius: 6px;">
+            
+            <button onclick="speichereFinaleTour()" style="width: 100%; padding: 10px; background: #2ca25f; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; box-shadow: 0 3px 6px rgba(44,162,95,0.3);">
+                💾 In Supabase speichern
+            </button>
+        </div>
+    `;
+
+    const mitte = Math.floor(d.koordinaten.length / 2);
+    L.popup({ maxWidth: 300 }).setLatLng(d.koordinaten[mitte]).setContent(html).openOn(map);
+};
+
+window.speichereFinaleTour = async function() {
+    const name = document.getElementById('tour-name').value || "Wald-Expedition";
+    const d = window.aktuelleTourDaten;
+
+    // Supabase Upload (greift auf die Spalten deiner existierenden Tabelle zu)
+    const { error } = await _supabase.from('wanderrouten').insert([{
+        name: name,
+        distanz_km: parseFloat(d.distanz),
+        hoehenmeter_auf: d.aufstieg,
+        hoehenmeter_ab: d.abstieg,
+        anteil_nsg_prozent: d.nsg_anteil,
+        koordinaten: d.koordinaten
+    }]);
+
+    if (!error) {
+        alert("🎉 Tour wurde erfolgreich gespeichert!");
+        map.closePopup();
+        window.routeKomplettLoeschen(); // Direkt auf der Karte Platz für Neues machen!
+    } else {
+        console.error(error);
+        alert("❌ Speicher-Fehler. Konsole checken!");
+    }
+};
 
     const schutzAnteil = coords.length > 0 ? Math.round((schutzPunkte / coords.length) * 100) : 0;
     zeigeSpeichernDialog(distanzKm, aufstieg, abstieg, schutzAnteil, coords);
@@ -737,4 +825,15 @@ window.entferneLetztenWegpunkt = function() {
         alert("Du hast noch gar keine Wegpunkte gesetzt! 😉");
     }
     map.closePopup();
+};
+// 3. Komplette Route löschen (Schwamm-Funktion)
+window.routeKomplettLoeschen = function() {
+    // 1. Navi-Motor zurücksetzen
+    window.routenPlaner.setWaypoints([]); 
+    
+    // 2. Den NEUEN Aktenschrank leeren, damit beim nächsten Klick keine alten Daten stören
+    window.aktuelleTourDaten = null; 
+    
+    // 3. Karte aufräumen
+    map.closePopup(); 
 };
