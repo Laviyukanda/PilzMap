@@ -481,7 +481,15 @@ async function berechneWanderStatistik(route) {
     zeigeSpeichernDialog(distanzKm, aufstieg, abstieg, schutzAnteil, coords);
 }
 
+// === Wir stellen einen kleinen "Schreibtisch" für die Route auf ===
+window.aktuelleWanderRoute = [];
+
 function zeigeSpeichernDialog(dist, auf, ab, nsg, coords) {
+    // 1. Wir legen die Koordinaten sicher auf den Schreibtisch, 
+    //    anstatt sie in den Button zu quetschen!
+    window.aktuelleWanderRoute = coords;
+
+    // 2. Wir bauen das Popup. Achte auf den Button: Er übergibt keine coords mehr!
     const popupHtml = `
         <div style="font-family:sans-serif; min-width:200px; text-align: center;">
             <h4>🌲 Wanderung speichern?</h4>
@@ -490,27 +498,40 @@ function zeigeSpeichernDialog(dist, auf, ab, nsg, coords) {
                 📏 <b>${dist} km</b> | 🏔️ <b>${auf.toFixed(0)}m Auf</b><br>
                 🚩 Rote Gebiete: <b>${nsg}%</b>
             </p>
-            <button onclick="speichereRouteInSupabase('${dist}', '${auf.toFixed(0)}', '${ab.toFixed(0)}', '${nsg}', '${JSON.stringify(coords)}')" style="width:100%; background:#2ca25f; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold; margin-top:5px;">
+            <button onclick="speichereRouteInSupabase(${dist}, ${auf.toFixed(0)}, ${ab.toFixed(0)}, ${nsg})" 
+                    style="width:100%; background:#2ca25f; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold; margin-top:5px;">
                 💾 In Cloud speichern
             </button>
         </div>
     `;
+    
     L.popup().setLatLng(coords[Math.floor(coords.length/2)]).setContent(popupHtml).openOn(map);
 }
 
-window.speichereRouteInSupabase = async function(dist, auf, ab, nsg, coordsJson) {
+window.speichereRouteInSupabase = async function(dist, auf, ab, nsg) {
     const name = document.getElementById('route-name').value || "Unbenannte Wanderung";
+    
+    // Wir nehmen die Koordinaten, die wir vorhin beiseite gelegt haben
+    const coordsZuSpeichern = window.aktuelleWanderRoute;
+
+    // Jetzt ab in die Datenbank damit!
     const { data, error } = await _supabase.from('wanderrouten').insert([{
         name: name,
         distanz_km: parseFloat(dist),
         hoehenmeter_auf: parseInt(auf),
         hoehenmeter_ab: parseInt(ab),
         anteil_nsg_prozent: parseInt(nsg),
-        koordinaten: JSON.parse(coordsJson)
+        koordinaten: coordsZuSpeichern // Supabase versteht das direkt als JSON!
     }]);
 
-    if (!error) { alert("Route erfolgreich in Supabase gespeichert! 🎉"); map.closePopup(); } 
-    else { console.error("Fehler:", error); alert("Fehler beim Speichern!"); }
+    if (!error) { 
+        alert("Route erfolgreich in Supabase gespeichert! 🎉"); 
+        map.closePopup(); 
+        window.aktuelleWanderRoute = []; // Schreibtisch wieder aufräumen
+    } else { 
+        console.error("Fehler beim Speichern:", error); 
+        alert("Huch, da hat was geklemmt. Schau in die Konsole (F12)!"); 
+    }
 };
 
 function holeAlleSchutzgebieteGeoJSON() {
