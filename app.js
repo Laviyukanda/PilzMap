@@ -108,7 +108,7 @@ function standortGefunden(e) {
     const wetterUrl = `https://api.open-meteo.com/v1/forecast?latitude=${e.latlng.lat}&longitude=${e.latlng.lng}&current_weather=true`;
     fetch(wetterUrl)
         .then(function(antwort) { return antwort.json(); })
-        .then(function(daten) {8
+        .then(function(daten) {
             if(daten.current_weather) {
                 const temp = daten.current_weather.temperature;
                 const hoehe = daten.elevation ?? "Unbekannt"; 
@@ -164,25 +164,35 @@ map.on('click', function(e) {
                         regenSumme = Math.round(regenSumme * 10) / 10;
 
                         ladePopup.setContent(`
-                        <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                            <button onclick="event.stopPropagation(); window.fuegeWegpunktHinzu(${latR}, ${lngR})"
-                                style="flex: 1; padding: 8px 4px; background: #2ca25f; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(44,162,95,0.2);">
-                                ➕ Ziel anfügen
-                            </button>
-                            <button onclick="event.stopPropagation(); window.entferneLetztenWegpunkt()"
-                                style="flex: 1; padding: 8px 4px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(231,76,60,0.2);">
-                                🔙 Zurück
-                            </button>
-                        </div>
-                        <button onclick="event.stopPropagation(); window.oeffneTourAuswertung()"
-                            style="width: 100%; padding: 6px; margin-bottom: 6px; background: #8e44ad; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(142,68,173,0.2);">
-                            🏁 Tour abschließen & Auswerten
-                        </button>
-                        <button onclick="event.stopPropagation(); window.routeKomplettLoeschen()"
-                            style="width: 100%; padding: 6px; margin-bottom: 12px; background: #7f8c8d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8em; box-shadow: 0 2px 4px rgba(127,140,141,0.2);">
-                            🗑️ Gesamte Route verwerfen
-                        </button>
-                                
+                        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; min-width: 240px; padding: 5px;">
+                            <div style="text-align: center; margin-bottom: 12px;">
+                                <h4 style="margin: 0 0 4px 0; color: #333; font-size: 1.1em;">📍 ${ortsName}</h4>
+                                <div style="font-size: 0.9em; color: #555; margin-bottom: 4px;">
+                                    🌡️ <b>${temperatur} °C</b> | 💨 ${wind} km/h
+                                </div>
+                                <div style="font-size: 0.85em; background: #eef5fc; color: #1e6091; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-top: 4px; font-weight: bold;">
+                                    🌧️ 7-Tage-Regen: ${regenSumme} mm
+                                </div>
+                            </div>
+                            <div style="border-top: 1px solid #eee; padding-top: 10px;">
+                                <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                                    <button onclick="event.stopPropagation(); window.fuegeWegpunktHinzu(${latR}, ${lngR})"
+                                        style="flex: 1; padding: 8px 4px; background: #2ca25f; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(44,162,95,0.2);">
+                                        ➕ Ziel anfügen
+                                    </button>
+                                    <button onclick="event.stopPropagation(); window.entferneLetztenWegpunkt()"
+                                        style="flex: 1; padding: 8px 4px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(231,76,60,0.2);">
+                                        🔙 Zurück
+                                    </button>
+                                </div>
+                                <button onclick="event.stopPropagation(); window.oeffneTourAuswertung()"
+                                    style="width: 100%; padding: 6px; margin-bottom: 6px; background: #8e44ad; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; box-shadow: 0 2px 4px rgba(142,68,173,0.2);">
+                                    🏁 Tour abschließen & Auswerten
+                                </button>
+                                <button onclick="event.stopPropagation(); window.routeKomplettLoeschen()"
+                                    style="width: 100%; padding: 6px; margin-bottom: 12px; background: #7f8c8d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8em; box-shadow: 0 2px 4px rgba(127,140,141,0.2);">
+                                    🗑️ Gesamte Route verwerfen
+                                </button>
                             </div>
                         </div>
                     `);
@@ -463,13 +473,15 @@ window.fuegeWegpunktHinzu = function(lat, lng) {
 if (typeof L.Control.geocoder === 'function') {
     L.Control.geocoder({ position: 'topleft', placeholder: 'Ort oder Wald suchen...' }).addTo(map);
 }
+// 🚨 NEU: Der Zündschlüssel muss hier definiert werden!
+const ORS_API_KEY = '5b3ce3597851110001cf624898c0d9504a5342eb9b4b732fb4c2049d';
 
 window.routenPlaner = L.Routing.control({
     waypoints: [],
     routeWhileDragging: true,
     show: true,
     addWaypoints: true,
-    fitSelectedRoutes: true,
+    fitSelectedRoutes: true,aktuelleWanderRo
     language: 'de',
     router: new L.Routing.OpenRouteService(ORS_API_KEY, {
         profile: 'foot-walking',
@@ -587,63 +599,6 @@ window.speichereFinaleTour = async function() {
     } else {
         console.error(error);
         alert("❌ Speicher-Fehler. Konsole checken!");
-    }
-};
-
-    const schutzAnteil = coords.length > 0 ? Math.round((schutzPunkte / coords.length) * 100) : 0;
-    zeigeSpeichernDialog(distanzKm, aufstieg, abstieg, schutzAnteil, coords);
-}
-
-// === Wir stellen einen kleinen "Schreibtisch" für die Route auf ===
-window.aktuelleWanderRoute = [];
-
-function zeigeSpeichernDialog(dist, auf, ab, nsg, coords) {
-    // 1. Wir legen die Koordinaten sicher auf den Schreibtisch, 
-    //    anstatt sie in den Button zu quetschen!
-    window.aktuelleWanderRoute = coords;
-
-    // 2. Wir bauen das Popup. Achte auf den Button: Er übergibt keine coords mehr!
-    const popupHtml = `
-        <div style="font-family:sans-serif; min-width:200px; text-align: center;">
-            <h4>🌲 Wanderung speichern?</h4>
-            <input type="text" id="route-name" placeholder="Name der Route..." style="width:100%; padding: 5px; margin-bottom: 8px;"><br>
-            <p style="font-size:0.9em; margin: 5px 0;">
-                📏 <b>${dist} km</b> | 🏔️ <b>${auf.toFixed(0)}m Auf</b><br>
-                🚩 Rote Gebiete: <b>${nsg}%</b>
-            </p>
-            <button onclick="speichereRouteInSupabase(${dist}, ${auf.toFixed(0)}, ${ab.toFixed(0)}, ${nsg})" 
-                    style="width:100%; background:#2ca25f; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; font-weight:bold; margin-top:5px;">
-                💾 In Cloud speichern
-            </button>
-        </div>
-    `;
-    
-    L.popup().setLatLng(coords[Math.floor(coords.length/2)]).setContent(popupHtml).openOn(map);
-}
-
-window.speichereRouteInSupabase = async function(dist, auf, ab, nsg) {
-    const name = document.getElementById('route-name').value || "Unbenannte Wanderung";
-    
-    // Wir nehmen die Koordinaten, die wir vorhin beiseite gelegt haben
-    const coordsZuSpeichern = window.aktuelleWanderRoute;
-
-    // Jetzt ab in die Datenbank damit!
-    const { data, error } = await _supabase.from('wanderrouten').insert([{
-        name: name,
-        distanz_km: parseFloat(dist),
-        hoehenmeter_auf: parseInt(auf),
-        hoehenmeter_ab: parseInt(ab),
-        anteil_nsg_prozent: parseInt(nsg),
-        koordinaten: coordsZuSpeichern // Supabase versteht das direkt als JSON!
-    }]);
-
-    if (!error) { 
-        alert("Route erfolgreich in Supabase gespeichert! 🎉"); 
-        map.closePopup(); 
-        window.aktuelleWanderRoute = []; // Schreibtisch wieder aufräumen
-    } else { 
-        console.error("Fehler beim Speichern:", error); 
-        alert("Huch, da hat was geklemmt. Schau in die Konsole (F12)!"); 
     }
 };
 
