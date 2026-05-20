@@ -13,12 +13,62 @@
     <div id="header">
         <h1>🍄 Mays Pilz-Hub BW</h1>
         <span style="font-size: 0.85em; opacity: 0.85;">Baden-Württemberg</span>
+        <button id="filter-btn" onclick="window.toggleFilterPanel()">🔍 Filtern</button>
     </div>
     <div id="wetter-leiste">
         🌤️ <b>Dein lokales Wetter:</b>
         <span id="wetter-anzeige">Wird geladen (warte auf GPS)...</span>
     </div>
     <div id="map"></div>
+
+    <div id="routen-bar">
+        <div id="routen-bar-inhalt"></div>
+    </div>
+
+    <!-- Filter-Panel -->
+    <div id="filter-panel">
+        <div id="filter-panel-kopf">
+            <span>🔍 Suchen &amp; Filtern</span>
+            <button onclick="window.toggleFilterPanel()" title="Schließen">✕</button>
+        </div>
+        <div id="filter-panel-inhalt">
+
+            <!-- Pilze filtern -->
+            <div class="filter-sektion">
+                <h3>🍄 Pilzfunde filtern</h3>
+                <input type="text" id="filter-name" placeholder="Name oder Notiz suchen…">
+                <select id="filter-essbarkeit">
+                    <option value="">Alle Kategorien</option>
+                    <option value="Essbar">🍽️ Essbar</option>
+                    <option value="Ungenießbar">🤢 Ungenießbar</option>
+                    <option value="Giftig">☠️ Giftig</option>
+                    <option value="Unbekannt">❓ Unbekannt</option>
+                </select>
+                <div class="filter-datum-row">
+                    <div>
+                        <label>Datum von</label>
+                        <input type="date" id="filter-von">
+                    </div>
+                    <div>
+                        <label>Datum bis</label>
+                        <input type="date" id="filter-bis">
+                    </div>
+                </div>
+                <div class="filter-aktionen">
+                    <button class="btn-anwenden" onclick="window.wendeFilterAn()">✓ Anwenden</button>
+                    <button class="btn-reset" onclick="window.filterZuruecksetzen()">↺ Alle zeigen</button>
+                </div>
+                <div id="filter-ergebnis"></div>
+            </div>
+
+            <!-- Gespeicherte Routen -->
+            <div class="filter-sektion">
+                <h3>🗺️ Gespeicherte Routen</h3>
+                <div id="routen-liste-panel"><span style="color:#aaa; font-size:0.88em;">Wird beim Öffnen geladen…</span></div>
+            </div>
+
+        </div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js" defer></script>

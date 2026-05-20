@@ -129,7 +129,7 @@ map.on('locationfound', standortGefunden);
 map.on('locationerror', standortFehler);
 map.locate({setView: true, maxZoom: 13});
 
-// === 5. Live-Wetter, Ortsname & 7-Tage-Regen per Mausklick ===
+// === 5. Live-Wetter & Ortsname per Mausklick ===
 map.on('click', function(e) {
     const lat = e.latlng.lat;
     const lng = e.latlng.lng;
@@ -138,65 +138,67 @@ map.on('click', function(e) {
 
     const ladePopup = L.popup()
         .setLatLng(e.latlng)
-        .setContent("⏳ Assistenten suchen Daten...")
+        .setContent('<div style="padding:10px; text-align:center; color:#555;">⏳ Daten werden geladen...</div>')
         .openOn(map);
 
     const wetterUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latR}&longitude=${lngR}&current_weather=true&daily=precipitation_sum&past_days=7&forecast_days=1&timezone=Europe/Berlin`;
-    const ortsUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latR}&lon=${lngR}`;
+    const ortsUrl   = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latR}&lon=${lngR}`;
 
-    fetch(ortsUrl)
-        .then(function(antwort) { return antwort.json(); })
-        .then(function(ortsDaten) {
+    Promise.all([fetch(ortsUrl).then(r => r.json()), fetch(wetterUrl).then(r => r.json())])
+        .then(([ortsDaten, wetterDaten]) => {
             let ortsName = "Natur pur";
             if (ortsDaten.address) {
-                ortsName = ortsDaten.address.city || ortsDaten.address.town || ortsDaten.address.village || ortsDaten.address.municipality || "Natur pur";
+                ortsName = ortsDaten.address.city || ortsDaten.address.town ||
+                           ortsDaten.address.village || ortsDaten.address.municipality || "Natur pur";
             }
 
-            fetch(wetterUrl)
-                .then(function(antwort) { return antwort.json(); })
-                .then(function(wetterDaten) {
-                    if(wetterDaten.current_weather && wetterDaten.daily) {
-                        const temperatur = wetterDaten.current_weather.temperature;
-                        const wind = wetterDaten.current_weather.windspeed;
-                        const regenMengen = wetterDaten.daily.precipitation_sum;
-                        let regenSumme = 0;
-                        for(let i = 0; i < 7; i++) { regenSumme += regenMengen[i] || 0; }
-                        regenSumme = Math.round(regenSumme * 10) / 10;
+            let wetterBlock = '';
+            if (wetterDaten.current_weather && wetterDaten.daily) {
+                const temp  = wetterDaten.current_weather.temperature;
+                const wind  = wetterDaten.current_weather.windspeed;
+                const regen = wetterDaten.daily.precipitation_sum;
+                let regenSumme = 0;
+                for (let i = 0; i < 7; i++) regenSumme += regen[i] || 0;
+                regenSumme = Math.round(regenSumme * 10) / 10;
+                wetterBlock = `
+                    <div style="font-size:0.9em; color:#555; margin-bottom:3px;">🌡️ <b>${temp} °C</b> &nbsp;|&nbsp; 💨 ${wind} km/h</div>
+                    <div style="font-size:0.82em; background:#eef5fc; color:#1e6091; padding:3px 10px; border-radius:20px; display:inline-block; font-weight:bold;">🌧️ 7-Tage-Regen: ${regenSumme} mm</div>`;
+            }
 
-                        // 1. HTML mit direkten onclick-Attributen setzen
-                        ladePopup.setContent(`
-                            <div style="font-family: 'Segoe UI', Tahoma, sans-serif; min-width: 240px; padding: 5px;">
-                                <div style="text-align: center; margin-bottom: 12px;">
-                                    <h4 style="margin: 0 0 4px 0; color: #333; font-size: 1.1em;">📍 ${ortsName}</h4>
-                                    <div style="font-size: 0.9em; color: #555; margin-bottom: 4px;">🌡️ <b>${temperatur} °C</b> | 💨 ${wind} km/h</div>
-                                    <div style="font-size: 0.85em; background: #eef5fc; color: #1e6091; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-top: 4px; font-weight: bold;">🌧️ 7-Tage-Regen: ${regenSumme} mm</div>
-                                </div>
-                                <div style="border-top: 1px solid #eee; padding-top: 10px;">
-                                    <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                                        <button onclick="window.fuegeWegpunktHinzu(${latR}, ${lngR})" style="flex: 1; padding: 8px 4px; background: #2ca25f; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">➕ Ziel</button>
-                                        <button onclick="window.entferneLetztenWegpunkt()" style="flex: 1; padding: 8px 4px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">🔙 Zurück</button>
-                                    </div>
-                                    <button onclick="window.oeffneTourAuswertung()" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #8e44ad; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">🏁 Tour auswerten</button>
-                                    <button onclick="window.routeKomplettLoeschen()" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #7f8c8d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8em;">🗑️ Route verwerfen</button>
-                                </div>
-                            </div>
-                        `);
+            // Routing-Buttons je nach aktuellem Status
+            const status = window.routingStatus;
+            const zwischenstoppBtn = (status === 'route_fertig')
+                ? `<button onclick="window.fuegeZwischenstopp(${latR},${lngR})" style="width:100%;padding:8px;background:#e67e22;color:white;border:none;border-radius:7px;cursor:pointer;font-weight:bold;font-size:0.85em;">➕ Zwischenstopp hier einfügen</button>`
+                : '';
 
-// 2. Den alten Block "map.once('popupopen', ...)" entfernst du komplett, der wird nicht mehr benötigt!
-
-                        // 2. Buttons "scharf schalten", sobald das Popup auf der Karte ist
-                        map.once('popupopen', function() {
-                            document.getElementById('btn-add').onclick = () => window.fuegeWegpunktHinzu(latR, lngR);
-                            document.getElementById('btn-back').onclick = () => window.entferneLetztenWegpunkt();
-                            document.getElementById('btn-eval').onclick = () => window.oeffneTourAuswertung();
-                            document.getElementById('btn-clear').onclick = () => window.routeKomplettLoeschen();
-                        });
-
-                    } else {
-                        ladePopup.setContent(`📍 <b>${ortsName}</b><br>❌ Keine Wetterdaten.`);
-                    }
-                })
-                .catch(function(f) { console.error(f); });
+            ladePopup.setContent(`
+                <div style="font-family:'Segoe UI',Tahoma,sans-serif; min-width:240px; padding:4px;">
+                    <div style="text-align:center; margin-bottom:10px;">
+                        <h4 style="margin:0 0 5px 0; color:#222; font-size:1.1em;">📍 ${ortsName}</h4>
+                        ${wetterBlock}
+                    </div>
+                    <div style="border-top:1px solid #eee; padding-top:10px; display:flex; flex-direction:column; gap:7px;">
+                        <div style="display:flex; gap:7px;">
+                            <button onclick="window.setzeStart(${latR},${lngR})"
+                                style="flex:1;padding:9px 4px;background:#27ae60;color:white;border:none;border-radius:7px;cursor:pointer;font-weight:bold;font-size:0.85em;">
+                                🚀 Startpunkt
+                            </button>
+                            <button onclick="window.setzeZiel(${latR},${lngR})"
+                                style="flex:1;padding:9px 4px;background:#2980b9;color:white;border:none;border-radius:7px;cursor:pointer;font-weight:bold;font-size:0.85em;">
+                                🎯 Ziel setzen
+                            </button>
+                        </div>
+                        ${zwischenstoppBtn}
+                        <button onclick="window.speichereAuto(${latR},${lngR})"
+                            style="width:100%;padding:8px;background:#7f8c8d;color:white;border:none;border-radius:7px;cursor:pointer;font-size:0.85em;">
+                            🚗 Auto hier parken
+                        </button>
+                    </div>
+                </div>
+            `);
+        })
+        .catch(() => {
+            ladePopup.setContent('<div style="padding:10px;">❌ Verbindung fehlgeschlagen.</div>');
         });
 });
 
@@ -443,41 +445,200 @@ regenLegende.onAdd = function(map) {
 };
 regenLegende.addTo(map);
 
-// === Hilfsfunktion: Wegpunkte per Klick zur Route hinzufügen ===
-window.fuegeWegpunktHinzu = function(lat, lng) {
-    // 1. Wir holen uns die aktuelle Liste aller bisherigen Routen-Punkte
-    const bisherigePunkte = window.routenPlaner.getWaypoints().filter(p => p.latLng);
-    
-    // 2. Wir hängen unseren neuen Klick-Punkt an die Liste an
-    bisherigePunkte.push(L.latLng(lat, lng));
-    
-    // 3. Wir übergeben die neue, längere Liste wieder an den Motor
-    window.routenPlaner.setWaypoints(bisherigePunkte);
-    
-    map.closePopup(); // Popup aufräumen
-};
-
 // === 8. Suchfeld & Routenplaner ===
 if (typeof L.Control.geocoder === 'function') {
     L.Control.geocoder({ position: 'topleft', placeholder: 'Ort oder Wald suchen...' }).addTo(map);
 }
 
+// === 8.0. Routing-Zustandsverwaltung ===
+window.routingStatus = 'leer'; // 'leer' | 'start_gesetzt' | 'berechnung' | 'route_fertig'
+window.routingAbortController = null;
+
+window.aktualisiereRoutenBar = function() {
+    const bar    = document.getElementById('routen-bar');
+    const inhalt = document.getElementById('routen-bar-inhalt');
+    if (!bar || !inhalt) return;
+
+    bar.classList.remove('status-start', 'status-berechnung', 'status-fertig', 'status-gespeichert');
+
+    if (window.routingStatus === 'leer') {
+        bar.classList.remove('aktiv');
+        return;
+    }
+    bar.classList.add('aktiv');
+
+    if (window.routingStatus === 'start_gesetzt') {
+        bar.classList.add('status-start');
+        inhalt.innerHTML = `
+            <div class="rb-status">🚀 Startpunkt gesetzt</div>
+            <div class="rb-hint">Klicke auf der Karte auf <b>🎯 Ziel setzen</b>, um die Route zu berechnen.</div>
+            <button class="routen-btn routen-btn-grau rb-btn-full" onclick="window.routeKomplettLoeschen()">✕ Abbrechen</button>`;
+        return;
+    }
+
+    if (window.routingStatus === 'berechnung') {
+        bar.classList.add('status-berechnung');
+        inhalt.innerHTML = `
+            <div class="rb-status">⏳ Route wird berechnet…</div>
+            <div class="routen-ladebalken"></div>
+            <button class="routen-btn routen-btn-grau rb-btn-full" onclick="window.abbrechenBerechnung()">✕ Abbrechen</button>`;
+        return;
+    }
+
+    if (window.routingStatus === 'route_fertig') {
+        bar.classList.add('status-fertig');
+        const d = window.aktuelleTourDaten;
+        const stunden = Math.floor(d.dauer / 60);
+        const minuten = d.dauer % 60;
+        const dauerText = stunden > 0 ? `${stunden}h ${minuten}m` : `${minuten} Min.`;
+        inhalt.innerHTML = `
+            <div class="rb-stats-grid">
+                <div class="rb-stat">
+                    <div class="rb-stat-val">📏 ${d.distanz} km</div>
+                    <div class="rb-stat-label">Strecke</div>
+                </div>
+                <div class="rb-stat">
+                    <div class="rb-stat-val">⏱️ ${dauerText}</div>
+                    <div class="rb-stat-label">Gehzeit</div>
+                </div>
+                <div class="rb-stat">
+                    <div class="rb-stat-val">↗ ${d.aufstieg} m</div>
+                    <div class="rb-stat-label">Aufstieg</div>
+                </div>
+                <div class="rb-stat">
+                    <div class="rb-stat-val">↘ ${d.abstieg} m</div>
+                    <div class="rb-stat-label">Abstieg</div>
+                </div>
+            </div>
+            <div class="rb-nsg">🌿 ${d.nsg_anteil}% Naturschutzgebiet</div>
+            <div class="rb-actions">
+                <button class="routen-btn routen-btn-gruen" onclick="window.oeffneTourSpeichern()">💾 Speichern</button>
+                <button class="routen-btn routen-btn-rot"   onclick="window.routeKomplettLoeschen()">🗑️ Löschen</button>
+            </div>`;
+        return;
+    }
+
+    if (window.routingStatus === 'gespeicherte_route') {
+        bar.classList.add('status-gespeichert');
+        const d = window.angezeigteTourDaten;
+        inhalt.innerHTML = `
+            <div class="rb-tour-name">🗺️ ${d.name}</div>
+            <div class="rb-stats-grid">
+                <div class="rb-stat">
+                    <div class="rb-stat-val">📏 ${d.distanz} km</div>
+                    <div class="rb-stat-label">Strecke</div>
+                </div>
+                <div class="rb-stat">
+                    <div class="rb-stat-val">🌿 ${d.nsg_anteil}%</div>
+                    <div class="rb-stat-label">NSG</div>
+                </div>
+                <div class="rb-stat">
+                    <div class="rb-stat-val">↗ ${d.aufstieg} m</div>
+                    <div class="rb-stat-label">Aufstieg</div>
+                </div>
+                <div class="rb-stat">
+                    <div class="rb-stat-val">↘ ${d.abstieg} m</div>
+                    <div class="rb-stat-label">Abstieg</div>
+                </div>
+            </div>
+            <button class="routen-btn routen-btn-grau rb-btn-full" onclick="window.schliesseGespeicherteRoute()">✕ Schließen</button>`;
+    }
+};
+
+window.setzeStart = function(lat, lng) {
+    window.routingStatus = 'start_gesetzt';
+    window.routenPlaner.setWaypoints([L.latLng(lat, lng)]);
+    window.aktualisiereRoutenBar();
+    map.closePopup();
+};
+
+window.setzeZiel = function(lat, lng) {
+    if (window.routingStatus === 'leer') {
+        // Kleiner Hinweis-Toast, kein Alert
+        const hint = L.popup({ closeButton: false, autoPan: false, className: 'hint-popup' })
+            .setLatLng(L.latLng(lat, lng))
+            .setContent('<div style="padding:6px 10px; font-size:0.9em;">Bitte zuerst einen <b>🚀 Startpunkt</b> wählen!</div>')
+            .openOn(map);
+        setTimeout(() => map.closePopup(), 2200);
+        return;
+    }
+    const punkte = window.routenPlaner.getWaypoints().filter(p => p.latLng);
+    punkte.push(L.latLng(lat, lng));
+    window.routingStatus = 'berechnung';
+    window.aktualisiereRoutenBar();
+    window.routenPlaner.setWaypoints(punkte);
+    map.closePopup();
+};
+
+window.fuegeZwischenstopp = function(lat, lng) {
+    const punkte = window.routenPlaner.getWaypoints().filter(p => p.latLng);
+    // Vor dem letzten Punkt einfügen, damit die Reihenfolge stimmt
+    punkte.splice(punkte.length - 1, 0, L.latLng(lat, lng));
+    window.routingStatus = 'berechnung';
+    window.aktualisiereRoutenBar();
+    window.routenPlaner.setWaypoints(punkte);
+    map.closePopup();
+};
+
+window.routeKomplettLoeschen = function() {
+    if (window.routingAbortController) {
+        window.routingAbortController.abort();
+        window.routingAbortController = null;
+    }
+    if (window._routeLinie) { map.removeLayer(window._routeLinie); window._routeLinie = null; }
+    window.routenPlaner.setWaypoints([]);
+    window.aktuelleTourDaten = null;
+    window.routingStatus = 'leer';
+    window.aktualisiereRoutenBar();
+    map.closePopup();
+};
+
+window.abbrechenBerechnung = function() {
+    if (window.routingAbortController) {
+        window.routingAbortController.abort();
+        window.routingAbortController = null;
+    }
+    // Startpunkt bleibt erhalten — Nutzer kann einfach ein neues Ziel wählen
+    window.routingStatus = 'start_gesetzt';
+    window.aktualisiereRoutenBar();
+};
+
 // 🚨 HIER fügst du deinen kostenlosen Key von graphhopper.com ein:
 const GH_API_KEY = '628e151d-3f4d-4914-885c-92fe701e71f9';
+
+function zeigeRoutingFehler(meldung) {
+    window.routingAbortController = null;
+    window.routingStatus = 'start_gesetzt';
+    const bar    = document.getElementById('routen-bar');
+    const inhalt = document.getElementById('routen-bar-inhalt');
+    if (!bar || !inhalt) return;
+    bar.classList.add('aktiv');
+    inhalt.innerHTML = `
+        <span style="color:#e74c3c; font-weight:bold; flex:1;">${meldung}</span>
+        <button class="routen-btn routen-btn-grau" onclick="window.routeKomplettLoeschen()">✕ Abbrechen</button>`;
+}
 
 window.routenPlaner = L.Routing.control({
     waypoints: [],
     routeWhileDragging: false,
-    show: true,
-    addWaypoints: true,
+    show: false,
+    addWaypoints: false,
     fitSelectedRoutes: true,
     language: 'de',
     router: {
         route: function(waypoints, callback) {
-            const punkte = waypoints.filter(p => p.latLng);
-            if (punkte.length < 2) return;
+            // Laufende Anfrage immer erst abbrechen
+            if (window.routingAbortController) {
+                window.routingAbortController.abort();
+                window.routingAbortController = null;
+            }
 
-            // Neue GH API: "profile" statt "vehicle", points als Array
+            const punkte = waypoints.filter(p => p.latLng);
+            if (punkte.length < 2) { return; }
+
+            window.routingAbortController = new AbortController();
+            const signal = window.routingAbortController.signal;
+
             const points = punkte.map(p => [p.latLng.lng, p.latLng.lat]);
             const url = `https://graphhopper.com/api/1/route?key=${GH_API_KEY}`;
 
@@ -485,135 +646,135 @@ window.routenPlaner = L.Routing.control({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    profile: 'hike',        // ← das echte Wanderprofil
+                    profile: 'foot',
                     points: points,
                     points_encoded: false,
-                    elevation: true,        // ← Höhenmeter für dein Dashboard
-                    details: ['hike_rating'] // ← Schwierigkeitsbewertung pro Segment
-                })
+                    elevation: true
+                }),
+                signal: signal
             })
             .then(r => r.json())
             .then(data => {
-                if (data.message) { // API-Fehler
-                    console.error('GH Fehler:', data.message);
-                    callback(new Error(data.message));
+                window.routingAbortController = null;
+                if (!data.paths || data.message) {
+                    console.error('GH Fehler:', data.message || 'Keine Pfade zurückgegeben');
+                    zeigeRoutingFehler('❌ Route konnte nicht berechnet werden — bitte ein anderes Ziel wählen.');
                     return;
                 }
                 const path = data.paths[0];
                 const latlngs = path.points.coordinates.map(
                     c => L.latLng(c[1], c[0], c[2] || 0)
                 );
-                callback(null, [{
-                    name: 'Wanderroute',
-                    coordinates: latlngs,
-                    summary: {
-                        totalDistance: path.distance,
-                        totalTime: path.time / 1000
-                    },
-                    inputWaypoints: waypoints,
-                    waypoints: waypoints,
-                    waypointIndices: [0, latlngs.length - 1]
-                }]);
+                // LRM 3.2.12: callback crasht intern (self._pendingRequest auf undefined).
+                // Route direkt als Polyline zeichnen und Stats manuell berechnen.
+                if (window._routeLinie) map.removeLayer(window._routeLinie);
+                window._routeLinie = L.polyline(latlngs, { color: '#2577b4', weight: 6, opacity: 0.85 }).addTo(map);
+                map.fitBounds(window._routeLinie.getBounds(), { padding: [40, 40] });
+                window._verarbeiteRoute(latlngs, path.distance, path.time);
             })
-            .catch(err => callback(err));
+            .catch(err => {
+                window.routingAbortController = null;
+                if (err.name === 'AbortError') return; // Nutzer hat abgebrochen — kein Fehler anzeigen
+                console.error('Netzwerk-Fehler:', err);
+                zeigeRoutingFehler('❌ Verbindung fehlgeschlagen — bitte versuche es erneut.');
+            });
         }
     }
 }).addTo(map);
 
-// === 10. Der stille Beobachter (Komoot-Statistiken im Hintergrund) ===
-window.aktuelleTourDaten = null; 
+// === 10. Routen-Auswertung ===
+window.aktuelleTourDaten = null;
+window._routeLinie = null;
 
-window.routenPlaner.on('routesfound', function(e) {
-    const route = e.routes[0];
-    const coords = route.coordinates;
-    
-    // 1. Standard-Werte vom Navi
-    const distanzKm = (route.summary.totalDistance / 1000).toFixed(2);
-    const dauerMin = Math.round(route.summary.totalTime / 60); 
-    
-    // 2. Höhenmeter berechnen
+window._verarbeiteRoute = function(coords, distanzM, zeitMs) {
+    const distanzKm = (distanzM / 1000).toFixed(2);
+    const dauerMin  = Math.round(zeitMs / 1000 / 60);
+
     let aufstieg = 0, abstieg = 0;
     for (let i = 1; i < coords.length; i++) {
-        let diff = (coords[i].alt || 0) - (coords[i-1].alt || 0);
+        const diff = (coords[i].alt || 0) - (coords[i-1].alt || 0);
         if (diff > 0) aufstieg += diff; else abstieg += Math.abs(diff);
     }
 
-    // 3. Deinen genialen Naturschutz-Scanner beibehalten!
-    const schutzGebieteGeoJSON = holeAlleSchutzgebieteGeoJSON(); 
+    const schutzGebieteGeoJSON = holeAlleSchutzgebieteGeoJSON();
     let schutzPunkte = 0;
-    coords.forEach(p => {
-        const pt = turf.point([p.lng, p.lat]);
-        if (schutzGebieteGeoJSON.features.length > 0) {
-            if (schutzGebieteGeoJSON.features.some(f => turf.booleanPointInPolygon(pt, f))) schutzPunkte++;
-        }
-    });
+    if (schutzGebieteGeoJSON.features.length > 0) {
+        coords.forEach(p => {
+            const pt = turf.point([p.lng, p.lat]);
+            if (schutzGebieteGeoJSON.features.some(f => {
+                const typ = f.geometry && f.geometry.type;
+                return (typ === 'Polygon' || typ === 'MultiPolygon') && turf.booleanPointInPolygon(pt, f);
+            })) schutzPunkte++;
+        });
+    }
     const schutzAnteil = coords.length > 0 ? Math.round((schutzPunkte / coords.length) * 100) : 0;
 
-    // Alles sauber in eine Kiste packen und auf den Schreibtisch stellen
     window.aktuelleTourDaten = {
         distanz: distanzKm,
-        dauer: dauerMin,
+        dauer:   dauerMin,
         aufstieg: Math.round(aufstieg),
-        abstieg: Math.round(abstieg),
+        abstieg:  Math.round(abstieg),
         nsg_anteil: schutzAnteil,
         koordinaten: coords
     };
+
+    window.routingStatus = 'route_fertig';
+    window.aktualisiereRoutenBar();
+};
+
+window.routenPlaner.on('routingerror', function(e) {
+    console.error('LRM routingerror:', e.error && e.error.message);
+    zeigeRoutingFehler('❌ Route konnte nicht berechnet werden — bitte ein anderes Ziel wählen.');
 });
 
-// === 11. Das Komoot-Style Dashboard & Supabase Upload ===
-window.oeffneTourAuswertung = function() {
-    // Check: Gibt es überhaupt eine Route?
-    if (!window.aktuelleTourDaten || window.aktuelleTourDaten.koordinaten.length === 0) {
-        alert("Du hast noch keine Route geplant! Setze erst ein paar Wegpunkte. 🥾");
-        return;
-    }
-
+// === 11. Tour-Speicher-Popup (öffnet sich über die Routen-Bar) ===
+window.oeffneTourSpeichern = function() {
     const d = window.aktuelleTourDaten;
+    if (!d) return;
+
     const stunden = Math.floor(d.dauer / 60);
     const minuten = d.dauer % 60;
     const dauerText = stunden > 0 ? `${stunden}h ${minuten}m` : `${minuten} Min.`;
+    const mitte = d.koordinaten[Math.floor(d.koordinaten.length / 2)];
 
-    // Das moderne Dashboard-Layout bauen
-    const html = `
-        <div style="font-family: 'Segoe UI', Tahoma, sans-serif; min-width: 250px; text-align: center;">
-            <h3 style="margin: 0 0 15px 0; color: #2ca25f;">🏔️ Tour-Zusammenfassung</h3>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px;">
-                <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <div style="font-size: 0.8em; color: #7f8c8d;">Strecke</div>
-                    <div style="font-weight: bold; font-size: 1.1em; color: #2c3e50;">${d.distanz} km</div>
+    L.popup({ maxWidth: 300 })
+        .setLatLng(mitte)
+        .setContent(`
+            <div style="font-family:'Segoe UI',Tahoma,sans-serif; min-width:250px; text-align:center; padding:4px;">
+                <h3 style="margin:0 0 14px 0; color:#2ca25f;">🏔️ Tour speichern</h3>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">
+                    <div style="background:#f8f9fa; padding:10px; border-radius:8px;">
+                        <div style="font-size:0.78em; color:#888;">Strecke</div>
+                        <div style="font-weight:bold; color:#2c3e50;">${d.distanz} km</div>
+                    </div>
+                    <div style="background:#f8f9fa; padding:10px; border-radius:8px;">
+                        <div style="font-size:0.78em; color:#888;">Gehzeit</div>
+                        <div style="font-weight:bold; color:#2c3e50;">${dauerText}</div>
+                    </div>
+                    <div style="background:#f8f9fa; padding:10px; border-radius:8px;">
+                        <div style="font-size:0.78em; color:#888;">Auf & Ab</div>
+                        <div style="font-weight:bold; font-size:0.9em; color:#e67e22;">↗ ${d.aufstieg}m | ↘ ${d.abstieg}m</div>
+                    </div>
+                    <div style="background:#f8f9fa; padding:10px; border-radius:8px;">
+                        <div style="font-size:0.78em; color:#888;">Natur</div>
+                        <div style="font-weight:bold; color:#27ae60;">${d.nsg_anteil}% NSG</div>
+                    </div>
                 </div>
-                <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <div style="font-size: 0.8em; color: #7f8c8d;">Gehzeit</div>
-                    <div style="font-weight: bold; font-size: 1.1em; color: #2c3e50;">${dauerText}</div>
-                </div>
-                <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <div style="font-size: 0.8em; color: #7f8c8d;">Auf & Ab</div>
-                    <div style="font-weight: bold; font-size: 1em; color: #e67e22;">↗ ${d.aufstieg}m | ↘ ${d.abstieg}m</div>
-                </div>
-                <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <div style="font-size: 0.8em; color: #7f8c8d;">Natur pur</div>
-                    <div style="font-weight: bold; font-size: 1.1em; color: #27ae60;">${d.nsg_anteil}% NSG</div>
-                </div>
+                <input type="text" id="tour-name" placeholder="Name für diese Tour?"
+                    style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ccc; border-radius:6px; font-size:0.95em;">
+                <button onclick="window.speichereFinaleTour()"
+                    style="width:100%; padding:10px; background:#2ca25f; color:white; border:none; border-radius:7px; font-weight:bold; font-size:1em; cursor:pointer;">
+                    💾 In Supabase speichern
+                </button>
             </div>
-
-            <input type="text" id="tour-name" placeholder="Wie nennst du diese Tour?" style="width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #bdc3c7; border-radius: 6px;">
-            
-            <button onclick="speichereFinaleTour()" style="width: 100%; padding: 10px; background: #2ca25f; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; box-shadow: 0 3px 6px rgba(44,162,95,0.3);">
-                💾 In Supabase speichern
-            </button>
-        </div>
-    `;
-
-    const mitte = Math.floor(d.koordinaten.length / 2);
-    L.popup({ maxWidth: 300 }).setLatLng(d.koordinaten[mitte]).setContent(html).openOn(map);
+        `)
+        .openOn(map);
 };
 
 window.speichereFinaleTour = async function() {
-    const name = document.getElementById('tour-name').value || "Wald-Expedition";
+    const name = document.getElementById('tour-name').value.trim() || "Wald-Expedition";
     const d = window.aktuelleTourDaten;
 
-    // Supabase Upload (greift auf die Spalten deiner existierenden Tabelle zu)
     const { error } = await _supabase.from('wanderrouten').insert([{
         name: name,
         distanz_km: parseFloat(d.distanz),
@@ -624,12 +785,12 @@ window.speichereFinaleTour = async function() {
     }]);
 
     if (!error) {
-        alert("🎉 Tour wurde erfolgreich gespeichert!");
+        alert("🎉 Tour erfolgreich gespeichert!");
         map.closePopup();
-        window.routeKomplettLoeschen(); // Direkt auf der Karte Platz für Neues machen!
+        window.routeKomplettLoeschen();
     } else {
         console.error(error);
-        alert("❌ Speicher-Fehler. Konsole checken!");
+        alert("❌ Speicher-Fehler – Details in der Konsole.");
     }
 };
 
@@ -649,23 +810,6 @@ function holeAlleSchutzgebieteGeoJSON() {
 window.meinAutoStandort = null;
 let autoMarker = null;
 
-// ✅ HIER — direkt nach den ersten zwei Zeilen
-function entferneAlleRoutenLayer() {
-    map.eachLayer(function(layer) {
-        if (layer._route || layer instanceof L.Routing.Line || 
-            (layer.options && layer.options.className && 
-             layer.options.className.includes('leaflet-routing'))) {
-            map.removeLayer(layer);
-        }
-        if (layer instanceof L.Marker && layer._icon && 
-            layer._icon.classList.contains('leaflet-routing-icon')) {
-            map.removeLayer(layer);
-        }
-    });
-    if (window.routenPlaner) {
-        window.routenPlaner.setWaypoints([]);
-    }
-}
 
 const autoIcon = L.divIcon({
     html: '<div style="font-size: 35px; line-height: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.4); text-align:center;">🚗</div>',
@@ -702,11 +846,10 @@ map.on('popupopen', function() {
 
 // Funktion 1: Auto parken
 window.speichereAuto = function(lat, lng) {
-    entferneAlleRoutenLayer(); // 🧽 Räumt alle alten Routen-Linien von der Karte
-    
+    window.routeKomplettLoeschen(); // Route zurücksetzen + Status bar leeren
+
     window.meinAutoStandort = L.latLng(lat, lng);
     if (autoMarker) map.removeLayer(autoMarker);
-    map.closePopup();
     localStorage.setItem('meinParkplatz', JSON.stringify({ lat: lat, lng: lng }));
 
     autoMarker = L.marker(window.meinAutoStandort, { icon: autoIcon })
@@ -718,6 +861,8 @@ window.speichereAuto = function(lat, lng) {
 // Funktion 2: Route zum Auto
 window.routeZumAuto = function() {
     if (!window.meinAutoStandort) return;
+    window.routingStatus = 'berechnung';
+    window.aktualisiereRoutenBar();
     navigator.geolocation.getCurrentPosition(function(pos) {
         window.routenPlaner.setWaypoints([
             L.latLng(pos.coords.latitude, pos.coords.longitude),
@@ -732,15 +877,13 @@ window.routeZumAuto = function() {
 
 // Funktion 3: Auto löschen
 window.loescheAuto = function() {
-    entferneAlleRoutenLayer(); // 🧽 Räumt alle alten Routen-Linien von der Karte
-    
+    window.routeKomplettLoeschen();
     if (autoMarker) {
         map.removeLayer(autoMarker);
         window.meinAutoStandort = null;
         autoMarker = null;
         localStorage.removeItem('meinParkplatz');
     }
-    map.closePopup();
 };
 
 // Funktion 4: Beim Seitenstart laden
@@ -756,35 +899,158 @@ window.ladeAutoBeimStart = function() {
 };
 
 ladeAutoBeimStart();
-// === UX-Hilfsfunktionen für den Routenplaner ===
 
-// 1. Wegpunkt hinzufügen
-window.fuegeWegpunktHinzu = function(lat, lng) {
-    const bisherigePunkte = window.routenPlaner.getWaypoints().filter(p => p.latLng);
-    bisherigePunkte.push(L.latLng(lat, lng));
-    window.routenPlaner.setWaypoints(bisherigePunkte);
-    map.closePopup(); // Schließt das Popup nach der Aktion für eine saubere Karte
+// === 12. Filter-Panel: Pilzfunde & gespeicherte Routen ===
+window._gespeicherteRouteLinie = null;
+
+window.toggleFilterPanel = function() {
+    const panel = document.getElementById('filter-panel');
+    const btn   = document.getElementById('filter-btn');
+    const offen = panel.classList.toggle('offen');
+    btn.classList.toggle('aktiv', offen);
+    if (offen) window.ladeGespeicherteRouten();
 };
 
-// 2. Letzten Wegpunkt löschen (Rückgängig-Funktion)
-window.entferneLetztenWegpunkt = function() {
-    const bisherigePunkte = window.routenPlaner.getWaypoints().filter(p => p.latLng);
-    if (bisherigePunkte.length > 0) {
-        bisherigePunkte.pop(); // .pop() wirft das letzte Element aus einer Liste
-        window.routenPlaner.setWaypoints(bisherigePunkte);
-    } else {
-        alert("Du hast noch gar keine Wegpunkte gesetzt! 😉");
+window.wendeFilterAn = function() {
+    const suchText   = (document.getElementById('filter-name').value || '').toLowerCase().trim();
+    const essbarkeit = document.getElementById('filter-essbarkeit').value;
+    const von        = document.getElementById('filter-von').value;
+    const bis        = document.getElementById('filter-bis').value;
+
+    let gezeigt = 0;
+    const gesamt = Object.keys(window.pilzDatenSpeicher).length;
+
+    Object.keys(window.pilzDatenSpeicher).forEach(function(id) {
+        const p      = window.pilzDatenSpeicher[id];
+        const marker = window.pilzMarkerSpeicher[id];
+        let zeigen   = true;
+
+        if (suchText   && !(p.notiz || '').toLowerCase().includes(suchText)) zeigen = false;
+        if (essbarkeit && p.geniessbarkeit !== essbarkeit)                    zeigen = false;
+        if (von && p.created_at && p.created_at.slice(0, 10) < von)          zeigen = false;
+        if (bis && p.created_at && p.created_at.slice(0, 10) > bis)          zeigen = false;
+
+        if (zeigen) {
+            if (!fundstellenLayer.hasLayer(marker)) fundstellenLayer.addLayer(marker);
+            gezeigt++;
+        } else {
+            fundstellenLayer.removeLayer(marker);
+        }
+    });
+
+    const ergebnis = document.getElementById('filter-ergebnis');
+    ergebnis.textContent = gesamt
+        ? `${gezeigt} von ${gesamt} Funden werden angezeigt`
+        : '';
+};
+
+window.filterZuruecksetzen = function() {
+    document.getElementById('filter-name').value      = '';
+    document.getElementById('filter-essbarkeit').value = '';
+    document.getElementById('filter-von').value        = '';
+    document.getElementById('filter-bis').value        = '';
+    document.getElementById('filter-ergebnis').textContent = '';
+
+    Object.keys(window.pilzMarkerSpeicher).forEach(function(id) {
+        const marker = window.pilzMarkerSpeicher[id];
+        if (!fundstellenLayer.hasLayer(marker)) fundstellenLayer.addLayer(marker);
+    });
+};
+
+window.ladeGespeicherteRouten = async function() {
+    const liste = document.getElementById('routen-liste-panel');
+    liste.innerHTML = '<span style="color:#aaa; font-size:0.88em;">⏳ Wird geladen…</span>';
+
+    const { data, error } = await _supabase
+        .from('wanderrouten')
+        .select('id, name, distanz_km, hoehenmeter_auf, hoehenmeter_ab, anteil_nsg_prozent')
+        .order('id', { ascending: false });
+
+    if (error || !data || !data.length) {
+        liste.innerHTML = '<span style="color:#aaa; font-size:0.88em;">Keine gespeicherten Routen vorhanden.</span>';
+        return;
     }
-    map.closePopup();
+
+    liste.innerHTML = '';
+    data.forEach(function(r) {
+        const div = document.createElement('div');
+        div.className = 'routen-eintrag';
+        div.id = `re-${r.id}`;
+        div.innerHTML = `
+            <div class="routen-eintrag-name">🗺️ ${r.name}</div>
+            <div class="routen-eintrag-meta">
+                📏 ${r.distanz_km} km &nbsp;·&nbsp;
+                ↗ ${r.hoehenmeter_auf}m ↘ ${r.hoehenmeter_ab}m &nbsp;·&nbsp;
+                🌿 ${r.anteil_nsg_prozent}% NSG
+            </div>
+            <div class="routen-eintrag-actions">
+                <button class="btn-zeigen"         onclick="window.zeigeGespeicherteRoute(${r.id})">📍 Anzeigen</button>
+                <button class="btn-loeschen-route" onclick="window.loescheGespeicherteRoute(${r.id})">🗑️ Löschen</button>
+            </div>`;
+        liste.appendChild(div);
+    });
 };
-// 3. Komplette Route löschen (Schwamm-Funktion)
-window.routeKomplettLoeschen = function() {
-    // 1. Navi-Motor zurücksetzen
-    window.routenPlaner.setWaypoints([]); 
-    
-    // 2. Den NEUEN Aktenschrank leeren, damit beim nächsten Klick keine alten Daten stören
-    window.aktuelleTourDaten = null; 
-    
-    // 3. Karte aufräumen
-    map.closePopup(); 
+
+window.angezeigteTourDaten = null;
+
+window.zeigeGespeicherteRoute = async function(id) {
+    const btn = document.querySelector(`#re-${id} .btn-zeigen`);
+    if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+
+    const { data, error } = await _supabase
+        .from('wanderrouten')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (btn) { btn.textContent = '📍 Anzeigen'; btn.disabled = false; }
+    if (error || !data || !data.koordinaten) return;
+
+    // Aktiven Eintrag hervorheben
+    document.querySelectorAll('.routen-eintrag').forEach(el => el.classList.remove('aktiv'));
+    const eintrag = document.getElementById(`re-${id}`);
+    if (eintrag) eintrag.classList.add('aktiv');
+
+    if (window._gespeicherteRouteLinie) map.removeLayer(window._gespeicherteRouteLinie);
+    const latlngs = data.koordinaten.map(c => L.latLng(c.lat, c.lng));
+    window._gespeicherteRouteLinie = L.polyline(latlngs, {
+        color: '#8e44ad', weight: 5, opacity: 0.85, dashArray: '10, 6'
+    }).addTo(map);
+    map.fitBounds(window._gespeicherteRouteLinie.getBounds(), { padding: [40, 40] });
+
+    window.angezeigteTourDaten = {
+        name:      data.name,
+        distanz:   data.distanz_km,
+        aufstieg:  data.hoehenmeter_auf,
+        abstieg:   data.hoehenmeter_ab,
+        nsg_anteil: data.anteil_nsg_prozent
+    };
+    window.routingStatus = 'gespeicherte_route';
+    window.aktualisiereRoutenBar();
+
+    window.toggleFilterPanel();
+};
+
+window.schliesseGespeicherteRoute = function() {
+    if (window._gespeicherteRouteLinie) {
+        map.removeLayer(window._gespeicherteRouteLinie);
+        window._gespeicherteRouteLinie = null;
+    }
+    document.querySelectorAll('.routen-eintrag').forEach(el => el.classList.remove('aktiv'));
+    window.angezeigteTourDaten = null;
+    window.routingStatus = 'leer';
+    window.aktualisiereRoutenBar();
+};
+
+window.loescheGespeicherteRoute = async function(id) {
+    if (!confirm('Möchtest du diese Route wirklich löschen?')) return;
+    const { error } = await _supabase.from('wanderrouten').delete().eq('id', id);
+    if (!error) {
+        const eintrag = document.getElementById(`re-${id}`);
+        if (eintrag) eintrag.remove();
+        if (window._gespeicherteRouteLinie) {
+            map.removeLayer(window._gespeicherteRouteLinie);
+            window._gespeicherteRouteLinie = null;
+        }
+    }
 };
