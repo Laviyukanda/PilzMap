@@ -463,22 +463,61 @@ if (typeof L.Control.geocoder === 'function') {
 }
 
 // 🚨 HIER fügst du deinen kostenlosen Key von graphhopper.com ein:
-const GH_API_KEY = '628e151d-3f4d-4914-885c-92fe701e71f9'; 
+const GH_API_KEY = '628e151d-3f4d-4914-885c-92fe701e71f9';
 
 window.routenPlaner = L.Routing.control({
     waypoints: [],
-    routeWhileDragging: true,
+    routeWhileDragging: false,
     show: true,
     addWaypoints: true,
     fitSelectedRoutes: true,
     language: 'de',
-    // 🐐 NEU: Der GraphHopper-Wandermotor!
-    router: L.Routing.graphHopper(GH_API_KEY, {
-        urlParameters: {
-            vehicle: 'foot', // Das Fußgänger-Profil
-            elevation: true  // WICHTIG: Die Z-Koordinate für deine Höhenmeter!
+    router: {
+        route: function(waypoints, callback) {
+            const punkte = waypoints.filter(p => p.latLng);
+            if (punkte.length < 2) return;
+
+            // Neue GH API: "profile" statt "vehicle", points als Array
+            const points = punkte.map(p => [p.latLng.lng, p.latLng.lat]);
+            const url = `https://graphhopper.com/api/1/route?key=${GH_API_KEY}`;
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    profile: 'hike',        // ← das echte Wanderprofil
+                    points: points,
+                    points_encoded: false,
+                    elevation: true,        // ← Höhenmeter für dein Dashboard
+                    details: ['hike_rating'] // ← Schwierigkeitsbewertung pro Segment
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.message) { // API-Fehler
+                    console.error('GH Fehler:', data.message);
+                    callback(new Error(data.message));
+                    return;
+                }
+                const path = data.paths[0];
+                const latlngs = path.points.coordinates.map(
+                    c => L.latLng(c[1], c[0], c[2] || 0)
+                );
+                callback(null, [{
+                    name: 'Wanderroute',
+                    coordinates: latlngs,
+                    summary: {
+                        totalDistance: path.distance,
+                        totalTime: path.time / 1000
+                    },
+                    inputWaypoints: waypoints,
+                    waypoints: waypoints,
+                    waypointIndices: [0, latlngs.length - 1]
+                }]);
+            })
+            .catch(err => callback(err));
         }
-    })
+    }
 }).addTo(map);
 
 // === 10. Der stille Beobachter (Komoot-Statistiken im Hintergrund) ===
