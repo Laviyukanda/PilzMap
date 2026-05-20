@@ -170,11 +170,12 @@ map.on('click', function(e) {
                                 🌡️ ${temperatur} °C | 💨 ${wind} km/h<br>
                                 🌧️ <b>Regen (7 Tage): ${regenSumme} mm</b>
                                 <hr style="margin: 10px 0; border: 0; border-top: 1px solid #ccc;">
-                                <button id="btn-auto-parken" style="width: 100%; padding: 6px; margin-bottom: 5px; background: #3388ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                <button onclick="window.speichereAuto(${latR}, ${lngR})" 
+                                    style="width: 100%; padding: 6px; margin-bottom: 5px; background: #3388ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
                                     🚗 Hier Auto parken
                                 </button>
                             </div>
-                            `);
+                        `);
 
                             // map.once('popupopen',...) ENTFERNEN — stattdessen direkt nach setContent:
                             setTimeout(function() {
