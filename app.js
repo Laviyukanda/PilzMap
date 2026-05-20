@@ -550,6 +550,24 @@ function holeAlleSchutzgebieteGeoJSON() {
 window.meinAutoStandort = null;
 let autoMarker = null;
 
+// ✅ HIER — direkt nach den ersten zwei Zeilen
+function entferneAlleRoutenLayer() {
+    map.eachLayer(function(layer) {
+        if (layer._route || layer instanceof L.Routing.Line || 
+            (layer.options && layer.options.className && 
+             layer.options.className.includes('leaflet-routing'))) {
+            map.removeLayer(layer);
+        }
+        if (layer instanceof L.Marker && layer._icon && 
+            layer._icon.classList.contains('leaflet-routing-icon')) {
+            map.removeLayer(layer);
+        }
+    });
+    if (window.routenPlaner) {
+        window.routenPlaner.setWaypoints([]);
+    }
+}
+
 const autoIcon = L.divIcon({
     html: '<div style="font-size: 35px; line-height: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.4); text-align:center;">🚗</div>',
     className: 'mein-auto',
@@ -585,6 +603,7 @@ map.on('popupopen', function() {
 
 // Funktion 1: Auto parken
 window.speichereAuto = function(lat, lng) {
+    entferneAlleRoutenLayer();
     // ✅ Alte Route und Pins zuerst komplett entfernen
     if (window.routenPlaner) {
         map.removeControl(window.routenPlaner);
@@ -630,8 +649,8 @@ window.routeZumAuto = function() {
 };
 
 // Funktion 3: Auto löschen
-// Funktion 3: Auto löschen
 window.loescheAuto = function() {
+    entferneAlleRoutenLayer();
     if (autoMarker) {
         map.removeLayer(autoMarker);
         window.meinAutoStandort = null;
