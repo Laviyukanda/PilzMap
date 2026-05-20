@@ -259,8 +259,14 @@ window.speichereNeuenFund = async function(lat, lng) {
         foto_url: urls[0], foto_url_2: urls[1], foto_url_3: urls[2]
     }]).select(); 
 
-    if (error) { statusText.innerHTML = "❌ Datenbank-Fehler!"; } 
-    else { statusText.innerHTML = "✅ Gespeichert!"; setTimeout(() => { map.closePopup(); ladePilzeAusCloud(); }, 1000); }
+    if (error) { statusText.innerHTML = "❌ Datenbank-Fehler!"; }
+    else {
+        if (window._aufzeichnungAktiv && data && data[0]) {
+            window._aufzeichnungFundeIds.push(data[0].id);
+        }
+        statusText.innerHTML = "✅ Gespeichert!";
+        setTimeout(() => { map.closePopup(); ladePilzeAusCloud(); }, 1000);
+    }
 };
 
 window.generiereAnsicht = function(id) {
@@ -577,6 +583,19 @@ window.aktualisiereRoutenBar = function() {
                     <div class="rb-stat-val">⏱️ ${d.dauerText}</div>
                     <div class="rb-stat-label">Gehzeit</div>
                 </div>` : '';
+
+        const genIkon = { 'Essbar': '🍽️', 'Ungenießbar': '🤢', 'Giftig': '☠️', 'Unbekannt': '❓' };
+        const fundeBlock = d.funde && d.funde.length > 0 ? `
+            <div style="background:#fff8f0; border-radius:9px; padding:9px 11px;">
+                <div style="font-weight:bold; font-size:0.82em; color:#8e4a00; margin-bottom:6px;">
+                    🍄 ${d.funde.length} Fund${d.funde.length > 1 ? 'e' : ''} auf dieser Tour
+                </div>
+                ${d.funde.map(f => `
+                    <div style="font-size:0.8em; color:#555; padding:2px 0; border-bottom:1px solid #f0e0cc;">
+                        ${genIkon[f.geniessbarkeit] || '❓'} ${f.notiz || '<i>Ohne Notiz</i>'}
+                    </div>`).join('')}
+            </div>` : '';
+
         inhalt.innerHTML = `
             <div class="rb-tour-name">🗺️ ${d.name}</div>
             <div class="rb-stats-grid">
@@ -598,6 +617,7 @@ window.aktualisiereRoutenBar = function() {
                     <div class="rb-stat-label">NSG</div>
                 </div>
             </div>
+            ${fundeBlock}
             <button class="routen-btn routen-btn-grau rb-btn-full" onclick="window.schliesseGespeicherteRoute()">✕ Schließen</button>`;
     }
 };
@@ -832,7 +852,7 @@ window.speichereFinaleTour = async function() {
     const name = document.getElementById('tour-name').value.trim() || "Wald-Expedition";
     const d = window.aktuelleTourDaten;
 
-    const { error } = await _supabase.from('wanderrouten').insert([{
+    const { data: routeData, error } = await _supabase.from('wanderrouten').insert([{
         name: name,
         distanz_km: parseFloat(d.distanz),
         hoehenmeter_auf: d.aufstieg,
@@ -840,9 +860,17 @@ window.speichereFinaleTour = async function() {
         anteil_nsg_prozent: d.nsg_anteil,
         dauer_min: d.dauer,
         koordinaten: d.koordinaten
-    }]);
+    }]).select('id').single();
 
     if (!error) {
+        // Pilzfunde der Aufzeichnungssession mit der Route verknüpfen
+        if (routeData && window._aufzeichnungFundeIds.length > 0) {
+            await _supabase.from('pilze')
+                .update({ route_id: routeData.id })
+                .in('id', window._aufzeichnungFundeIds);
+            window._aufzeichnungFundeIds = [];
+            ladePilzeAusCloud();
+        }
         alert("🎉 Tour erfolgreich gespeichert!");
         map.closePopup();
         window.routeKomplettLoeschen();
@@ -1055,11 +1083,10 @@ window.zeigeGespeicherteRoute = async function(id) {
     const btn = document.querySelector(`#re-${id} .btn-zeigen`);
     if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
 
-    const { data, error } = await _supabase
-        .from('wanderrouten')
-        .select('*')
-        .eq('id', id)
-        .single();
+    const [{ data, error }, { data: funde }] = await Promise.all([
+        _supabase.from('wanderrouten').select('*').eq('id', id).single(),
+        _supabase.from('pilze').select('id, notiz, geniessbarkeit').eq('route_id', id)
+    ]);
 
     if (btn) { btn.textContent = '📍 Anzeigen'; btn.disabled = false; }
     if (error || !data || !data.koordinaten) return;
@@ -1087,7 +1114,8 @@ window.zeigeGespeicherteRoute = async function(id) {
         aufstieg:  data.hoehenmeter_auf,
         abstieg:   data.hoehenmeter_ab,
         nsg_anteil: data.anteil_nsg_prozent,
-        dauerText: dauerText
+        dauerText: dauerText,
+        funde:     funde || []
     };
     window.routingStatus = 'gespeicherte_route';
     window.aktualisiereRoutenBar();
@@ -1107,13 +1135,14 @@ window.schliesseGespeicherteRoute = function() {
 };
 
 // === 13. Live-Route aufzeichnen ===
-window._aufzeichnungAktiv   = false;
-window._aufzeichnungPunkte  = [];
-window._aufzeichnungLinie   = null;
-window._aufzeichnungWatchId = null;
-window._aufzeichnungStart   = null;
-window._aufzeichnungTimer   = null;
-window._aufzeichnungDistanz = 0;
+window._aufzeichnungAktiv    = false;
+window._aufzeichnungPunkte   = [];
+window._aufzeichnungLinie    = null;
+window._aufzeichnungWatchId  = null;
+window._aufzeichnungStart    = null;
+window._aufzeichnungTimer    = null;
+window._aufzeichnungDistanz  = 0;
+window._aufzeichnungFundeIds = [];
 
 function _aufzeichnungBtnAktualisieren() {
     const btn = document.getElementById('aufzeichnung-btn');
@@ -1243,9 +1272,10 @@ window.verwerfAufzeichnung = function() {
     }
     clearInterval(window._aufzeichnungTimer);
     window._aufzeichnungTimer   = null;
-    window._aufzeichnungAktiv   = false;
-    window._aufzeichnungPunkte  = [];
-    window._aufzeichnungDistanz = 0;
+    window._aufzeichnungAktiv    = false;
+    window._aufzeichnungPunkte   = [];
+    window._aufzeichnungDistanz  = 0;
+    window._aufzeichnungFundeIds = [];
     if (window._aufzeichnungLinie) { map.removeLayer(window._aufzeichnungLinie); window._aufzeichnungLinie = null; }
     _aufzeichnungBtnAktualisieren();
     window.routingStatus = 'leer';
