@@ -181,7 +181,7 @@ map.on('click', function(e) {
                                 const btn = document.getElementById('btn-auto-parken');
                                 if (btn) {
                                     btn.addEventListener('click', function() {
-                                        speichereAuto(lat, lng);
+                                        window.speichereAuto(lat, lng);  // ← window. davor
                                     });
                                 }
                             }, 100);
