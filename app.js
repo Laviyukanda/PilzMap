@@ -443,7 +443,7 @@ window.routenPlaner = L.Routing.control({
     waypoints: [],
     // ← kein router: L.Routing.openrouteservice(...) mehr!
     routeWhileDragging: true,
-    show: false,
+    show: true,
     addWaypoints: true,
     fitSelectedRoutes: true,
     language: 'de'
