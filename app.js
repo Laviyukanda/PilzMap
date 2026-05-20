@@ -443,7 +443,11 @@ regenLegende.onAdd = function(map) {
         <i style="background: #0055ff; width: 12px; height: 12px; display: inline-block; border-radius: 50%; margin-right: 5px;"></i> &gt; 30 mm (Sehr nass)`;
     return div;
 };
-regenLegende.addTo(map);
+// Legende nur anzeigen wenn der Stations-Layer aktiv ist
+regenLegende.addTo(map); // stationenLayer ist standardmäßig an
+
+map.on('overlayadd',    function(e) { if (e.layer === stationenLayer) regenLegende.addTo(map); });
+map.on('overlayremove', function(e) { if (e.layer === stationenLayer) regenLegende.remove(); });
 
 // === 8. Suchfeld & Routenplaner ===
 if (typeof L.Control.geocoder === 'function') {
