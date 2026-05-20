@@ -572,6 +572,11 @@ window.aktualisiereRoutenBar = function() {
     if (window.routingStatus === 'gespeicherte_route') {
         bar.classList.add('status-gespeichert');
         const d = window.angezeigteTourDaten;
+        const dauerZelle = d.dauerText ? `
+                <div class="rb-stat">
+                    <div class="rb-stat-val">⏱️ ${d.dauerText}</div>
+                    <div class="rb-stat-label">Gehzeit</div>
+                </div>` : '';
         inhalt.innerHTML = `
             <div class="rb-tour-name">🗺️ ${d.name}</div>
             <div class="rb-stats-grid">
@@ -579,10 +584,7 @@ window.aktualisiereRoutenBar = function() {
                     <div class="rb-stat-val">📏 ${d.distanz} km</div>
                     <div class="rb-stat-label">Strecke</div>
                 </div>
-                <div class="rb-stat">
-                    <div class="rb-stat-val">🌿 ${d.nsg_anteil}%</div>
-                    <div class="rb-stat-label">NSG</div>
-                </div>
+                ${dauerZelle}
                 <div class="rb-stat">
                     <div class="rb-stat-val">↗ ${d.aufstieg} m</div>
                     <div class="rb-stat-label">Aufstieg</div>
@@ -590,6 +592,10 @@ window.aktualisiereRoutenBar = function() {
                 <div class="rb-stat">
                     <div class="rb-stat-val">↘ ${d.abstieg} m</div>
                     <div class="rb-stat-label">Abstieg</div>
+                </div>
+                <div class="rb-stat">
+                    <div class="rb-stat-val">🌿 ${d.nsg_anteil}%</div>
+                    <div class="rb-stat-label">NSG</div>
                 </div>
             </div>
             <button class="routen-btn routen-btn-grau rb-btn-full" onclick="window.schliesseGespeicherteRoute()">✕ Schließen</button>`;
@@ -832,6 +838,7 @@ window.speichereFinaleTour = async function() {
         hoehenmeter_auf: d.aufstieg,
         hoehenmeter_ab: d.abstieg,
         anteil_nsg_prozent: d.nsg_anteil,
+        dauer_min: d.dauer,
         koordinaten: d.koordinaten
     }]);
 
@@ -1069,12 +1076,18 @@ window.zeigeGespeicherteRoute = async function(id) {
     }).addTo(map);
     map.fitBounds(window._gespeicherteRouteLinie.getBounds(), { padding: [40, 40] });
 
+    const dMin = data.dauer_min || 0;
+    const dauerText = dMin > 0
+        ? (Math.floor(dMin / 60) > 0 ? `${Math.floor(dMin / 60)}h ${dMin % 60}m` : `${dMin} Min.`)
+        : null;
+
     window.angezeigteTourDaten = {
         name:      data.name,
         distanz:   data.distanz_km,
         aufstieg:  data.hoehenmeter_auf,
         abstieg:   data.hoehenmeter_ab,
-        nsg_anteil: data.anteil_nsg_prozent
+        nsg_anteil: data.anteil_nsg_prozent,
+        dauerText: dauerText
     };
     window.routingStatus = 'gespeicherte_route';
     window.aktualisiereRoutenBar();
