@@ -481,7 +481,7 @@ window.routenPlaner = L.Routing.control({
     routeWhileDragging: true,
     show: true,
     addWaypoints: true,
-    fitSelectedRoutes: true,aktuelleWanderRo
+    fitSelectedRoutes: true,
     language: 'de',
     router: new L.Routing.OpenRouteService(ORS_API_KEY, {
         profile: 'foot-walking',
