@@ -1,4 +1,4 @@
-// === 0. Koordinatensystem für LUBW-Daten (EPSG:25832) definieren ===
+    // === 0. Koordinatensystem für LUBW-Daten (EPSG:25832) definieren ===
 proj4.defs("EPSG:25832", "+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs");
 
 // === 1. Karte initialisieren ===
@@ -174,16 +174,17 @@ map.on('click', function(e) {
                                     🚗 Hier Auto parken
                                 </button>
                             </div>
-                        `);
+                            `);
 
-                        // Event per popupopen setzen (kein onclick im HTML!)
-                        map.once('popupopen', function() {
+                            // map.once('popupopen',...) ENTFERNEN — stattdessen direkt nach setContent:
                             setTimeout(function() {
                                 const btn = document.getElementById('btn-auto-parken');
-                                if (btn) btn.addEventListener('click', function() {
-                                    speichereAuto(lat, lng);
-                                });
-                            }, 50);
+                                if (btn) {
+                                    btn.addEventListener('click', function() {
+                                        speichereAuto(lat, lng);
+                                    });
+                                }
+                            }, 100);
                         });
 
                     } else {
