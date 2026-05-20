@@ -591,6 +591,7 @@ window.routeZumAuto = function() {
 };
 
 // Funktion 3: Auto löschen
+// Funktion 3: Auto löschen
 window.loescheAuto = function() {
     if (autoMarker) {
         map.removeLayer(autoMarker);
@@ -598,10 +599,26 @@ window.loescheAuto = function() {
         autoMarker = null;
         localStorage.removeItem('meinParkplatz');
     }
-    // ✅ Route und Waypoint-Pins ebenfalls entfernen
+    // Route, Linie und alle Pins komplett entfernen
     if (window.routenPlaner) {
         window.routenPlaner.setWaypoints([]);
+        // Routing Machine vom Map entfernen und neu hinzufügen
+        map.removeControl(window.routenPlaner);
+        window.routenPlaner = L.Routing.control({
+            waypoints: [],
+            routeWhileDragging: true,
+            show: false,
+            addWaypoints: true,
+            fitSelectedRoutes: true,
+            language: 'de'
+        }).addTo(map);
+        window.routenPlaner.on('routesfound', function(e) {
+            if(e.routes && e.routes[0]) {
+                berechneWanderStatistik(e.routes[0]);
+            }
+        });
     }
+    map.closePopup();
 };
 
 // Funktion 4: Beim Seitenstart laden
