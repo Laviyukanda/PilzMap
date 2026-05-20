@@ -448,10 +448,12 @@ if (typeof L.Control.geocoder === 'function') {
     L.Control.geocoder({ position: 'topleft', placeholder: 'Ort oder Wald suchen...' }).addTo(map);
 }
 
-const ORS_API_KEY = "DEIN_API_KEY_HIER_EINTRAGEN"; 
+const ORS_API_KEY = "eyJvcmciOi..."; 
 window.routenPlaner = L.Routing.control({
     waypoints: [],
-    router: L.Routing.openrouteservice(ORS_API_KEY, { profile: 'foot-hiking', format: 'json' }),
+    router: L.Routing.openrouteservice(ORS_API_KEY, { 
+        profile: 'foot-hiking' 
+    }),
     routeWhileDragging: true,
     show: false,
     addWaypoints: true,
