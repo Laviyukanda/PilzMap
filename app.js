@@ -13,7 +13,7 @@ const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // === 2.1. Leere Sammelmappen & WMS anlegen ===
 const waldLayer = L.layerGroup().addTo(map);
 const fundstellenLayer = L.layerGroup().addTo(map); 
-const stationenLayer = L.layerGroup().addTo(map); // Wieder auf addTo(map) gesetzt
+const stationenLayer = L.layerGroup();
 const naturschutzLayer = L.layerGroup().addTo(map); 
 const nationalparkLayer = L.layerGroup().addTo(map); 
 
@@ -405,7 +405,28 @@ const wetterStationen = [
     { name: "Waldshut-Tiengen (Hochrhein)", lat: 47.6231, lng: 8.2144 },
     { name: "Biberach (Oberschwaben)", lat: 48.0953, lng: 9.7952 },
     { name: "Ravensburg (Schussental)", lat: 47.7811, lng: 9.6130 },
-    { name: "Konstanz (Bodensee)", lat: 47.6592, lng: 9.1756 }
+    { name: "Konstanz (Bodensee)", lat: 47.6592, lng: 9.1756 },
+    // --- Ergänzungen: bisher nicht abgedeckte Regionen ---
+    { name: "Bruchsal (Kraichgau)", lat: 49.1269, lng: 8.5978 },
+    { name: "Sinsheim (Kraichgau)", lat: 49.2535, lng: 8.8758 },
+    { name: "Mosbach (Neckar-Odenwald)", lat: 49.3533, lng: 9.1456 },
+    { name: "Bühl (Ortenaukreis)", lat: 48.6981, lng: 8.1353 },
+    { name: "Calw (Nordschwarzwald)", lat: 48.7166, lng: 8.7375 },
+    { name: "Backnang (Murrtal)", lat: 48.9466, lng: 9.4338 },
+    { name: "Waiblingen (Rems-Murr)", lat: 48.8304, lng: 9.3190 },
+    { name: "Schwäbisch Gmünd (Ostalbkreis)", lat: 48.7997, lng: 9.7980 },
+    { name: "Ellwangen (Jagst)", lat: 48.9619, lng: 10.1322 },
+    { name: "Horb am Neckar", lat: 48.4440, lng: 8.6912 },
+    { name: "Balingen (Zollernalb)", lat: 48.2736, lng: 8.8511 },
+    { name: "Rottenburg am Neckar", lat: 48.4767, lng: 8.9339 },
+    { name: "Münsingen (Schwäbische Alb)", lat: 48.4106, lng: 9.4956 },
+    { name: "Ehingen (Donau)", lat: 48.2806, lng: 9.7244 },
+    { name: "Singen (Hegau)", lat: 47.7600, lng: 8.8411 },
+    { name: "Stockach (Hegau)", lat: 47.8521, lng: 8.9999 },
+    { name: "Friedrichshafen (Bodensee-Ost)", lat: 47.6539, lng: 9.4785 },
+    { name: "Wangen im Allgäu", lat: 47.6869, lng: 9.8335 },
+    { name: "Leutkirch im Allgäu", lat: 47.8258, lng: 10.0161 },
+    { name: "Schopfheim (Südschwarzwald)", lat: 47.6511, lng: 7.8222 }
 ];
 
 wetterStationen.forEach(function(station, index) {
@@ -444,7 +465,7 @@ regenLegende.onAdd = function(map) {
     return div;
 };
 // Legende nur anzeigen wenn der Stations-Layer aktiv ist
-regenLegende.addTo(map); // stationenLayer ist standardmäßig an
+// Legende startet versteckt — erscheint erst wenn Layer aktiviert wird
 
 map.on('overlayadd',    function(e) { if (e.layer === stationenLayer) regenLegende.addTo(map); });
 map.on('overlayremove', function(e) { if (e.layer === stationenLayer) regenLegende.remove(); });
