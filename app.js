@@ -598,6 +598,10 @@ window.loescheAuto = function() {
         autoMarker = null;
         localStorage.removeItem('meinParkplatz');
     }
+    // ✅ Route und Waypoint-Pins ebenfalls entfernen
+    if (window.routenPlaner) {
+        window.routenPlaner.setWaypoints([]);
+    }
 };
 
 // Funktion 4: Beim Seitenstart laden
