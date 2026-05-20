@@ -463,12 +463,15 @@ if (typeof L.Control.geocoder === 'function') {
 
 window.routenPlaner = L.Routing.control({
     waypoints: [],
-    // ← kein router: L.Routing.openrouteservice(...) mehr!
     routeWhileDragging: true,
     show: true,
     addWaypoints: true,
     fitSelectedRoutes: true,
-    language: 'de'
+    language: 'de',
+    router: new L.Routing.OpenRouteService(ORS_API_KEY, {
+        profile: 'foot-walking',
+        elevation: true // 🏔️ NEU: Wir fordern ein 3D-Höhenprofil an!
+    })
 }).addTo(map);
 
 // Event-Listener: Sobald die Route fertig berechnet ist, starten wir die Analyse!
