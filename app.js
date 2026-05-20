@@ -688,17 +688,6 @@ window.speichereAuto = function(lat, lng) {
         .openPopup();
 };
 
-    window.meinAutoStandort = L.latLng(lat, lng);
-    if (autoMarker) map.removeLayer(autoMarker);
-    map.closePopup();
-    localStorage.setItem('meinParkplatz', JSON.stringify({ lat: lat, lng: lng }));
-
-    autoMarker = L.marker(window.meinAutoStandort, { icon: autoIcon })
-        .addTo(map)
-        .bindPopup(erstelleAutoMenue())
-        .openPopup();
-};
-
 // Funktion 2: Route zum Auto
 window.routeZumAuto = function() {
     if (!window.meinAutoStandort) return;
