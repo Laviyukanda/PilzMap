@@ -1,8 +1,8 @@
     // === 0. Koordinatensystem für LUBW-Daten (EPSG:25832) definieren ===
 proj4.defs("EPSG:25832", "+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs");
 
-// === 1. Karte initialisieren ===
-const map = L.map('map').setView([48.9, 9.2], 8);
+// === 1. Karte initialisieren (Startansicht: ganz Baden-Württemberg) ===
+const map = L.map('map').setView([48.65, 9.0], 8);
 
 // === 2. Basiskarte (OpenStreetMap) hinzufügen ===
 const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -41,6 +41,44 @@ const overlayKarten = {
     "📊 7-Tage-Regen (Messpunkte)": stationenLayer
 };
 L.control.layers(basisKarten, overlayKarten).addTo(map);
+
+// === 2.3. BW-Grenzmaske (alles außerhalb ausgegraut) ===
+fetch('https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/master/2_bundeslaender/4_niedrig.geo.json')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        const bw = data.features.find(function(f) {
+            return f.properties.GEN === 'Baden-Württemberg' || f.properties.name === 'Baden-Württemberg';
+        });
+        if (!bw) return;
+
+        // Größten Außenring ermitteln (BW ist ein Polygon)
+        let bwRing;
+        if (bw.geometry.type === 'Polygon') {
+            bwRing = bw.geometry.coordinates[0];
+        } else {
+            bwRing = bw.geometry.coordinates
+                .map(function(p) { return p[0]; })
+                .reduce(function(a, b) { return a.length > b.length ? a : b; });
+        }
+
+        // Weltrechteck mit BW als Loch → alles außerhalb wird ausgegraut
+        const welt = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]];
+        L.geoJSON({
+            type: 'Feature',
+            geometry: { type: 'Polygon', coordinates: [welt, bwRing] }
+        }, {
+            style: { fillColor: '#888', fillOpacity: 0.28, stroke: false, fillRule: 'evenodd' }
+        }).addTo(map);
+
+        // BW-Umriss als dezente Linie
+        L.geoJSON(bw, {
+            style: { color: '#555', weight: 1.5, fill: false, opacity: 0.5 }
+        }).addTo(map);
+
+        // Startansicht exakt auf BW einpassen
+        map.fitBounds(L.geoJSON(bw).getBounds(), { padding: [20, 20] });
+    })
+    .catch(function(err) { console.warn('BW-Grenze nicht geladen:', err); });
 
 // === 3. Waldschutzgebiete laden ===
 fetch('waldschutzgebiete.json')
@@ -126,7 +164,6 @@ navigator.geolocation.watchPosition(
 
         if (_ersterStandort) {
             _ersterStandort = false;
-            map.setView(latlng, 13);
             fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true`)
                 .then(r => r.json())
                 .then(function(daten) {
