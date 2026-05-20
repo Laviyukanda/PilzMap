@@ -131,9 +131,9 @@ map.locate({setView: true, maxZoom: 13});
 
 // === 5. Live-Wetter, Ortsname & 7-Tage-Regen per Mausklick ===
 map.on('click', function(e) {
-    const lat = e.latlng.lat;          // ✅ erst lat/lng aus dem Event holen
+    const lat = e.latlng.lat;
     const lng = e.latlng.lng;
-    const latR = lat.toFixed(6);       // ✅ dann runden
+    const latR = lat.toFixed(6);
     const lngR = lng.toFixed(6);
 
     const ladePopup = L.popup()
@@ -158,7 +158,6 @@ map.on('click', function(e) {
                     if(wetterDaten.current_weather && wetterDaten.daily) {
                         const temperatur = wetterDaten.current_weather.temperature;
                         const wind = wetterDaten.current_weather.windspeed;
-                        
                         const regenMengen = wetterDaten.daily.precipitation_sum;
                         let regenSumme = 0;
                         for(let i = 0; i < 7; i++) { regenSumme += regenMengen[i] || 0; }
@@ -170,34 +169,25 @@ map.on('click', function(e) {
                                 🌡️ ${temperatur} °C | 💨 ${wind} km/h<br>
                                 🌧️ <b>Regen (7 Tage): ${regenSumme} mm</b>
                                 <hr style="margin: 10px 0; border: 0; border-top: 1px solid #ccc;">
-                                <button onclick="event.stopPropagation(); window.speichereAuto(${latR}, ${lngR})" 
+                                <button onclick="event.stopPropagation(); window.speichereAuto(${latR}, ${lngR})"
                                     style="width: 100%; padding: 6px; margin-bottom: 5px; background: #3388ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
                                     🚗 Hier Auto parken
                                 </button>
                             </div>
                         `);
+                        // ✅ kein setTimeout mehr hier
 
-                            // map.once('popupopen',...) ENTFERNEN — stattdessen direkt nach setContent:
-                            setTimeout(function() {
-                                const btn = document.getElementById('btn-auto-parken');
-                                if (btn) {
-                                    btn.addEventListener('click', function() {
-                                        window.speichereAuto(lat, lng);  // ← window. davor
-                                    });
-                                }
-                            }, 100);
-                        
                     } else {
                         ladePopup.setContent(`📍 <b>${ortsName}</b><br>❌ Keine Wetterdaten gefunden.`);
                     }
                 })
-                .catch(function(fehler) { 
+                .catch(function(fehler) {
                     console.error(fehler);
-                    ladePopup.setContent("❌ Wetter-Daten offline."); 
+                    ladePopup.setContent("❌ Wetter-Daten offline.");
                 });
         })
-        .catch(function() { 
-            ladePopup.setContent("❌ Adress-Server überlastet. Bitte kurz warten."); 
+        .catch(function() {
+            ladePopup.setContent("❌ Adress-Server überlastet. Bitte kurz warten.");
         });
 });
 
