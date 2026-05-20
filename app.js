@@ -585,6 +585,24 @@ map.on('popupopen', function() {
 
 // Funktion 1: Auto parken
 window.speichereAuto = function(lat, lng) {
+    // ✅ Alte Route und Pins zuerst komplett entfernen
+    if (window.routenPlaner) {
+        map.removeControl(window.routenPlaner);
+        window.routenPlaner = L.Routing.control({
+            waypoints: [],
+            routeWhileDragging: true,
+            show: false,
+            addWaypoints: true,
+            fitSelectedRoutes: true,
+            language: 'de'
+        }).addTo(map);
+        window.routenPlaner.on('routesfound', function(e) {
+            if(e.routes && e.routes[0]) {
+                berechneWanderStatistik(e.routes[0]);
+            }
+        });
+    }
+
     window.meinAutoStandort = L.latLng(lat, lng);
     if (autoMarker) map.removeLayer(autoMarker);
     map.closePopup();
