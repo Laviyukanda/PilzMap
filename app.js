@@ -100,26 +100,44 @@ fetch('nationalpark.json')
     .catch(function(fehler) { console.warn("Nationalparks-Datei fehlt noch:", fehler); });
 
 // === 4. Live-Standort abfragen ===
-function standortGefunden(e) {
-    const standortMarker = L.marker(e.latlng).addTo(map).bindPopup("📍 Du bist hier!");
-    setTimeout(function() { standortMarker.openPopup(); }, 800);
-    L.circle(e.latlng, e.accuracy, { color: 'blue', fillOpacity: 0.1 }).addTo(map);
+let _standortMarker = null;
+let _standortKreis  = null;
+let _ersterStandort = true;
 
-    const wetterUrl = `https://api.open-meteo.com/v1/forecast?latitude=${e.latlng.lat}&longitude=${e.latlng.lng}&current_weather=true`;
-    fetch(wetterUrl)
-        .then(function(antwort) { return antwort.json(); })
-        .then(function(daten) {
-            if(daten.current_weather) {
-                const temp = daten.current_weather.temperature;
-                const hoehe = daten.elevation ?? "Unbekannt"; 
-                const anzeigeFeld = document.getElementById('wetter-anzeige');
-                if(anzeigeFeld) { 
-                    anzeigeFeld.innerHTML = `${temp} °C | 🏔️ Höhe: ${hoehe} Meter`; 
+const _standortIcon = L.divIcon({
+    className: '',
+    html: '<div class="standort-dot"></div>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+});
+
+function standortGefunden(e) {
+    if (_standortMarker) {
+        _standortMarker.setLatLng(e.latlng);
+        _standortKreis.setLatLng(e.latlng).setRadius(e.accuracy);
+    } else {
+        _standortMarker = L.marker(e.latlng, { icon: _standortIcon, zIndexOffset: 1000 }).addTo(map);
+        _standortKreis  = L.circle(e.latlng, { radius: e.accuracy, color: '#2577b4', weight: 1, fillColor: '#2577b4', fillOpacity: 0.12 }).addTo(map);
+    }
+
+    if (_ersterStandort) {
+        _ersterStandort = false;
+        const wetterUrl = `https://api.open-meteo.com/v1/forecast?latitude=${e.latlng.lat}&longitude=${e.latlng.lng}&current_weather=true`;
+        fetch(wetterUrl)
+            .then(function(antwort) { return antwort.json(); })
+            .then(function(daten) {
+                if(daten.current_weather) {
+                    const temp = daten.current_weather.temperature;
+                    const hoehe = daten.elevation ?? "Unbekannt";
+                    const anzeigeFeld = document.getElementById('wetter-anzeige');
+                    if(anzeigeFeld) {
+                        anzeigeFeld.innerHTML = `${temp} °C | 🏔️ Höhe: ${hoehe} Meter`;
+                    }
                 }
-            }
-        })
-        .catch(function(fehler) { console.error("Wetter-Verbindung fehlgeschlagen:", fehler); });
-}   
+            })
+            .catch(function(fehler) { console.error("Wetter-Verbindung fehlgeschlagen:", fehler); });
+    }
+}
 
 function standortFehler(e) {
     alert("GPS-Fehler: " + e.message);
@@ -127,7 +145,7 @@ function standortFehler(e) {
 
 map.on('locationfound', standortGefunden);
 map.on('locationerror', standortFehler);
-map.locate({setView: true, maxZoom: 13});
+map.locate({ setView: true, maxZoom: 13, watch: true });
 
 // === 5. Live-Wetter & Ortsname per Mausklick ===
 map.on('click', function(e) {
@@ -435,28 +453,34 @@ const wetterStationen = [
     { name: "Schopfheim (Südschwarzwald)", lat: 47.6511, lng: 7.8222 }
 ];
 
-wetterStationen.forEach(function(station, index) {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${station.lat}&longitude=${station.lng}&daily=precipitation_sum&past_days=7&forecast_days=1&timezone=Europe/Berlin`;
-    setTimeout(function() {
-        fetch(url)
-            .then(function(antwort) { if (!antwort.ok) throw new Error("Blockade"); return antwort.json(); })
-            .then(function(daten) {
-                if (daten.daily && daten.daily.precipitation_sum) {
-                    let summe = 0;
-                    for(let i = 0; i < 7; i++) { summe += daten.daily.precipitation_sum[i] || 0; }
-                    summe = Math.round(summe * 10) / 10;
-                    let farbe = '#ff3333';
-                    if (summe >= 5) farbe = '#ffcc00';
-                    if (summe >= 15) farbe = '#2ca25f';
-                    if (summe >= 30) farbe = '#0055ff';
+const REGEN_REFRESH_MS = 15 * 60 * 1000; // alle 15 Minuten
+let _regenInterval = null;
 
-                    L.circleMarker([station.lat, station.lng], { radius: 12, fillColor: farbe, color: '#ffffff', weight: 2, fillOpacity: 0.85 })
-                    .bindPopup(`<div style="text-align: center;">📍 <b>${station.name}</b><br><hr style="margin:5px 0;">🌧️ 7-Tage-Regen:<br><span style="font-size:1.2em; font-weight:bold; color:${farbe};">${summe} mm</span></div>`)
-                    .addTo(stationenLayer);
-                }
-            }).catch(function(f) { console.warn(f); });
-    }, index * 200);
-});
+function ladeRegenStationen() {
+    stationenLayer.clearLayers();
+    wetterStationen.forEach(function(station, index) {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${station.lat}&longitude=${station.lng}&daily=precipitation_sum&past_days=7&forecast_days=1&timezone=Europe/Berlin`;
+        setTimeout(function() {
+            fetch(url)
+                .then(function(antwort) { if (!antwort.ok) throw new Error("Blockade"); return antwort.json(); })
+                .then(function(daten) {
+                    if (daten.daily && daten.daily.precipitation_sum) {
+                        let summe = 0;
+                        for(let i = 0; i < 7; i++) { summe += daten.daily.precipitation_sum[i] || 0; }
+                        summe = Math.round(summe * 10) / 10;
+                        let farbe = '#ff3333';
+                        if (summe >= 5)  farbe = '#ffcc00';
+                        if (summe >= 15) farbe = '#2ca25f';
+                        if (summe >= 30) farbe = '#0055ff';
+
+                        L.circleMarker([station.lat, station.lng], { radius: 12, fillColor: farbe, color: '#ffffff', weight: 2, fillOpacity: 0.85 })
+                        .bindPopup(`<div style="text-align: center;">📍 <b>${station.name}</b><br><hr style="margin:5px 0;">🌧️ 7-Tage-Regen:<br><span style="font-size:1.2em; font-weight:bold; color:${farbe};">${summe} mm</span></div>`)
+                        .addTo(stationenLayer);
+                    }
+                }).catch(function(f) { console.warn(f); });
+        }, index * 200);
+    });
+}
 
 const regenLegende = L.control({ position: 'topright' });
 regenLegende.onAdd = function(map) {
@@ -470,11 +494,19 @@ regenLegende.onAdd = function(map) {
         <i style="background: #0055ff; width: 12px; height: 12px; display: inline-block; border-radius: 50%; margin-right: 5px;"></i> &gt; 30 mm (Sehr nass)`;
     return div;
 };
-// Legende nur anzeigen wenn der Stations-Layer aktiv ist
-// Legende startet versteckt — erscheint erst wenn Layer aktiviert wird
 
-map.on('overlayadd',    function(e) { if (e.layer === stationenLayer) regenLegende.addTo(map); });
-map.on('overlayremove', function(e) { if (e.layer === stationenLayer) regenLegende.remove(); });
+map.on('overlayadd', function(e) {
+    if (e.layer !== stationenLayer) return;
+    regenLegende.addTo(map);
+    ladeRegenStationen();
+    _regenInterval = setInterval(ladeRegenStationen, REGEN_REFRESH_MS);
+});
+map.on('overlayremove', function(e) {
+    if (e.layer !== stationenLayer) return;
+    regenLegende.remove();
+    clearInterval(_regenInterval);
+    _regenInterval = null;
+});
 
 // === 8. Suchfeld & Routenplaner ===
 if (typeof L.Control.geocoder === 'function') {
@@ -997,46 +1029,89 @@ window.toggleFilterPanel = function() {
     if (offen) window.ladeGespeicherteRouten();
 };
 
+const _genIkon = { 'Essbar': '🍽️', 'Ungenießbar': '🤢', 'Giftig': '☠️', 'Unbekannt': '❓' };
+window._gefilterteIds = [];
+
 window.wendeFilterAn = function() {
     const suchText   = (document.getElementById('filter-name').value || '').toLowerCase().trim();
     const essbarkeit = document.getElementById('filter-essbarkeit').value;
     const von        = document.getElementById('filter-von').value;
     const bis        = document.getElementById('filter-bis').value;
 
-    let gezeigt = 0;
-    const gesamt = Object.keys(window.pilzDatenSpeicher).length;
-
+    const gefunden = [];
     Object.keys(window.pilzDatenSpeicher).forEach(function(id) {
-        const p      = window.pilzDatenSpeicher[id];
-        const marker = window.pilzMarkerSpeicher[id];
-        let zeigen   = true;
-
+        const p = window.pilzDatenSpeicher[id];
+        let zeigen = true;
         if (suchText   && !(p.notiz || '').toLowerCase().includes(suchText)) zeigen = false;
         if (essbarkeit && p.geniessbarkeit !== essbarkeit)                    zeigen = false;
         if (von && p.created_at && p.created_at.slice(0, 10) < von)          zeigen = false;
         if (bis && p.created_at && p.created_at.slice(0, 10) > bis)          zeigen = false;
+        if (zeigen) gefunden.push({ id, p });
+    });
 
-        if (zeigen) {
+    window._gefilterteIds = gefunden.map(function(f) { return f.id; });
+
+    const ergebnis = document.getElementById('filter-ergebnis');
+    if (!gefunden.length) {
+        ergebnis.innerHTML = '<span style="color:#e74c3c; font-size:0.85em;">Keine Funde gefunden.</span>';
+        return;
+    }
+
+    let html = `<button onclick="window.zeigeAlleGefiltert()" style="width:100%;padding:9px;background:#2577b4;color:white;border:none;border-radius:7px;font-weight:bold;cursor:pointer;font-size:0.88em;margin-bottom:10px;">📍 Alle ${gefunden.length} auf Karte zeigen</button>`;
+
+    html += gefunden.map(function(f) {
+        const p = f.p;
+        const datum = p.created_at ? p.created_at.slice(0, 10) : '';
+        const foto  = p.foto_url
+            ? `<img src="${p.foto_url}" style="width:46px;height:46px;object-fit:cover;border-radius:6px;margin-right:10px;flex-shrink:0;">`
+            : `<div style="width:46px;height:46px;background:#f0ece8;border-radius:6px;margin-right:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3em;">🍄</div>`;
+        const ikon  = _genIkon[p.geniessbarkeit] || '❓';
+        const notiz = p.notiz ? p.notiz : '<i style="color:#bbb;">Ohne Notiz</i>';
+        return `<div onclick="window.springeZuFund('${f.id}')" style="display:flex;align-items:center;padding:8px 2px;border-bottom:1px solid #f0f0f0;cursor:pointer;">
+            ${foto}
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:0.85em;font-weight:bold;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ikon} ${notiz}</div>
+                <div style="font-size:0.75em;color:#aaa;margin-top:2px;">${datum}</div>
+            </div>
+        </div>`;
+    }).join('');
+
+    ergebnis.innerHTML = html;
+};
+
+window.zeigeAlleGefiltert = function() {
+    if (!map.hasLayer(fundstellenLayer)) map.addLayer(fundstellenLayer);
+    const sichtbar = new Set(window._gefilterteIds.map(String));
+    Object.keys(window.pilzMarkerSpeicher).forEach(function(id) {
+        const marker = window.pilzMarkerSpeicher[id];
+        if (sichtbar.has(String(id))) {
             if (!fundstellenLayer.hasLayer(marker)) fundstellenLayer.addLayer(marker);
-            gezeigt++;
         } else {
             fundstellenLayer.removeLayer(marker);
         }
     });
+    window.toggleFilterPanel();
+};
 
-    const ergebnis = document.getElementById('filter-ergebnis');
-    ergebnis.textContent = gesamt
-        ? `${gezeigt} von ${gesamt} Funden werden angezeigt`
-        : '';
+window.springeZuFund = function(id) {
+    const p = window.pilzDatenSpeicher[id];
+    const marker = window.pilzMarkerSpeicher[id];
+    if (!p || !marker) return;
+    if (!map.hasLayer(fundstellenLayer)) map.addLayer(fundstellenLayer);
+    map.setView([p.lat, p.lng], 15);
+    marker.openPopup();
+    window.toggleFilterPanel();
 };
 
 window.filterZuruecksetzen = function() {
-    document.getElementById('filter-name').value      = '';
+    document.getElementById('filter-name').value       = '';
     document.getElementById('filter-essbarkeit').value = '';
     document.getElementById('filter-von').value        = '';
     document.getElementById('filter-bis').value        = '';
-    document.getElementById('filter-ergebnis').textContent = '';
+    document.getElementById('filter-ergebnis').innerHTML = '';
+    window._gefilterteIds = [];
 
+    if (!map.hasLayer(fundstellenLayer)) map.addLayer(fundstellenLayer);
     Object.keys(window.pilzMarkerSpeicher).forEach(function(id) {
         const marker = window.pilzMarkerSpeicher[id];
         if (!fundstellenLayer.hasLayer(marker)) fundstellenLayer.addLayer(marker);

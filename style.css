@@ -320,9 +320,6 @@ body { font-family: sans-serif; background: #f5f5f5; }
 #filter-ergebnis {
     margin-top: 10px;
     font-size: 0.83em;
-    color: #27ae60;
-    font-weight: bold;
-    min-height: 1.2em;
 }
 
 /* Routen-Einträge */
@@ -438,4 +435,23 @@ button, a {
 
     /* Legende rechts oben etwas kleiner */
     .info.legend { font-size: 0.82em; padding: 7px; }
+}
+
+/* LRM-Panel komplett ausblenden (Route wird selbst gezeichnet) */
+.leaflet-routing-container { display: none !important; }
+
+/* === Live-Standort-Punkt === */
+.standort-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #2577b4;
+    border: 2.5px solid white;
+    box-shadow: 0 0 0 0 rgba(37, 119, 180, 0.5);
+    animation: standort-puls 2s ease-out infinite;
+}
+@keyframes standort-puls {
+    0%   { box-shadow: 0 0 0 0   rgba(37, 119, 180, 0.5); }
+    70%  { box-shadow: 0 0 0 10px rgba(37, 119, 180, 0); }
+    100% { box-shadow: 0 0 0 0   rgba(37, 119, 180, 0); }
 }
