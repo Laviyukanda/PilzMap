@@ -164,21 +164,46 @@ map.on('click', function(e) {
                         regenSumme = Math.round(regenSumme * 10) / 10;
 
                         ladePopup.setContent(`
-                            <div style="text-align: center; font-family: sans-serif;">
-                                📍 <b>${ortsName}</b><br>
-                                🌡️ ${temperatur} °C | 💨 ${wind} km/h<br>
-                                🌧️ <b>Regen (7 Tage): ${regenSumme} mm</b>                            
-                                <hr style="margin: 10px 0; border: 0; border-top: 1px solid #ccc;">                            
-                                <button onclick="event.stopPropagation(); window.fuegeWegpunktHinzu(${latR}, ${lngR})"
-                                    style="width: 100%; padding: 6px; margin-bottom: 5px; background: #ff9900; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-                                    🥾 Als Wegpunkt hinzufügen
-                                </button>                                
+                        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; min-width: 240px; padding: 5px;">
+                            
+                            <div style="text-align: center; margin-bottom: 12px;">
+                                <h4 style="margin: 0 0 4px 0; color: #333; font-size: 1.1em;">📍 ${ortsName}</h4>
+                                <div style="font-size: 0.9em; color: #555; margin-bottom: 4px;">
+                                    🌡️ <b>${temperatur} °C</b> | 💨 ${wind} km/h
+                                </div>
+                                <div style="font-size: 0.85em; background: #eef5fc; color: #1e6091; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-top: 4px; font-weight: bold;">
+                                    🌧️ 7-Tage-Regen: ${regenSumme} mm
+                                </div>
+                            </div>
+                    
+                            <div style="border-top: 1px solid #eee; padding-top: 10px;">
+                                
+                                <div style="font-size: 0.75em; text-transform: uppercase; color: #999; font-weight: bold; margin-bottom: 6px; letter-spacing: 0.5px;">
+                                    Routen-Optionen
+                                </div>
+                                
+                                <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+                                    <button onclick="event.stopPropagation(); window.fuegeWegpunktHinzu(${latR}, ${lngR})"
+                                        style="flex: 1; padding: 8px 4px; background: #2ca25f; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; display: flex; align-items: center; justify-content: center; gap: 3px; box-shadow: 0 2px 4px rgba(44,162,95,0.2);">
+                                        ➕ 🥾 Wegpunkt
+                                    </button>
+                                    <button onclick="event.stopPropagation(); window.entferneLetztenWegpunkt()"
+                                        style="flex: 1; padding: 8px 4px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em; display: flex; align-items: center; justify-content: center; gap: 3px; box-shadow: 0 2px 4px rgba(231,76,60,0.2);">
+                                        ❌ Rückgängig
+                                    </button>
+                                </div>
+                                
+                                <div style="font-size: 0.75em; text-transform: uppercase; color: #999; font-weight: bold; margin-bottom: 6px; letter-spacing: 0.5px;">
+                                    Fahrzeug-Standort
+                                </div>
                                 <button onclick="event.stopPropagation(); window.speichereAuto(${latR}, ${lngR})"
-                                    style="width: 100%; padding: 6px; margin-bottom: 5px; background: #3388ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                    style="width: 100%; padding: 8px; background: #3388ff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9em; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 2px 4px rgba(51,136,255,0.2);">
                                     🚗 Hier Auto parken
                                 </button>
+                                
                             </div>
-                        `);
+                        </div>
+                    `);
                         // ✅ kein setTimeout mehr hier
 
                     } else {
@@ -710,3 +735,24 @@ window.ladeAutoBeimStart = function() {
 };
 
 ladeAutoBeimStart();
+// === UX-Hilfsfunktionen für den Routenplaner ===
+
+// 1. Wegpunkt hinzufügen
+window.fuegeWegpunktHinzu = function(lat, lng) {
+    const bisherigePunkte = window.routenPlaner.getWaypoints().filter(p => p.latLng);
+    bisherigePunkte.push(L.latLng(lat, lng));
+    window.routenPlaner.setWaypoints(bisherigePunkte);
+    map.closePopup(); // Schließt das Popup nach der Aktion für eine saubere Karte
+};
+
+// 2. Letzten Wegpunkt löschen (Rückgängig-Funktion)
+window.entferneLetztenWegpunkt = function() {
+    const bisherigePunkte = window.routenPlaner.getWaypoints().filter(p => p.latLng);
+    if (bisherigePunkte.length > 0) {
+        bisherigePunkte.pop(); // .pop() wirft das letzte Element aus einer Liste
+        window.routenPlaner.setWaypoints(bisherigePunkte);
+    } else {
+        alert("Du hast noch gar keine Wegpunkte gesetzt! 😉");
+    }
+    map.closePopup();
+};
