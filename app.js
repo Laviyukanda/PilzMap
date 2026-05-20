@@ -108,7 +108,7 @@ function standortGefunden(e) {
     const wetterUrl = `https://api.open-meteo.com/v1/forecast?latitude=${e.latlng.lat}&longitude=${e.latlng.lng}&current_weather=true`;
     fetch(wetterUrl)
         .then(function(antwort) { return antwort.json(); })
-        .then(function(daten) {
+        .then(function(daten) {8
             if(daten.current_weather) {
                 const temp = daten.current_weather.temperature;
                 const hoehe = daten.elevation ?? "Unbekannt"; 
@@ -167,8 +167,12 @@ map.on('click', function(e) {
                             <div style="text-align: center; font-family: sans-serif;">
                                 📍 <b>${ortsName}</b><br>
                                 🌡️ ${temperatur} °C | 💨 ${wind} km/h<br>
-                                🌧️ <b>Regen (7 Tage): ${regenSumme} mm</b>
-                                <hr style="margin: 10px 0; border: 0; border-top: 1px solid #ccc;">
+                                🌧️ <b>Regen (7 Tage): ${regenSumme} mm</b>                            
+                                <hr style="margin: 10px 0; border: 0; border-top: 1px solid #ccc;">                            
+                                <button onclick="event.stopPropagation(); window.fuegeWegpunktHinzu(${latR}, ${lngR})"
+                                    style="width: 100%; padding: 6px; margin-bottom: 5px; background: #ff9900; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                    🥾 Als Wegpunkt hinzufügen
+                                </button>                                
                                 <button onclick="event.stopPropagation(); window.speichereAuto(${latR}, ${lngR})"
                                     style="width: 100%; padding: 6px; margin-bottom: 5px; background: #3388ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
                                     🚗 Hier Auto parken
@@ -433,6 +437,20 @@ regenLegende.onAdd = function(map) {
     return div;
 };
 regenLegende.addTo(map);
+
+// === Hilfsfunktion: Wegpunkte per Klick zur Route hinzufügen ===
+window.fuegeWegpunktHinzu = function(lat, lng) {
+    // 1. Wir holen uns die aktuelle Liste aller bisherigen Routen-Punkte
+    const bisherigePunkte = window.routenPlaner.getWaypoints().filter(p => p.latLng);
+    
+    // 2. Wir hängen unseren neuen Klick-Punkt an die Liste an
+    bisherigePunkte.push(L.latLng(lat, lng));
+    
+    // 3. Wir übergeben die neue, längere Liste wieder an den Motor
+    window.routenPlaner.setWaypoints(bisherigePunkte);
+    
+    map.closePopup(); // Popup aufräumen
+};
 
 // === 8. Suchfeld & Routenplaner ===
 if (typeof L.Control.geocoder === 'function') {
