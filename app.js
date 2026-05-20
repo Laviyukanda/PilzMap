@@ -122,6 +122,7 @@ function standortGefunden(e) {
 
     if (_ersterStandort) {
         _ersterStandort = false;
+        map.setView(e.latlng, 13);
         const wetterUrl = `https://api.open-meteo.com/v1/forecast?latitude=${e.latlng.lat}&longitude=${e.latlng.lng}&current_weather=true`;
         fetch(wetterUrl)
             .then(function(antwort) { return antwort.json(); })
@@ -145,7 +146,27 @@ function standortFehler(e) {
 
 map.on('locationfound', standortGefunden);
 map.on('locationerror', standortFehler);
-map.locate({ setView: true, maxZoom: 13, watch: true });
+map.locate({ setView: false, watch: true });
+
+// Standort-Button (zurück zum eigenen Standort)
+const standortControl = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd: function() {
+        const btn = L.DomUtil.create('button', 'standort-btn leaflet-bar');
+        btn.innerHTML = '📍';
+        btn.title = 'Zu meinem Standort';
+        L.DomEvent.on(btn, 'click', function(e) {
+            L.DomEvent.stopPropagation(e);
+            if (_standortMarker) {
+                map.setView(_standortMarker.getLatLng(), 15);
+            } else {
+                alert('Standort noch nicht verfügbar.');
+            }
+        });
+        return btn;
+    }
+});
+new standortControl().addTo(map);
 
 // === 5. Live-Wetter & Ortsname per Mausklick ===
 map.on('click', function(e) {

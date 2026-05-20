@@ -550,6 +550,23 @@ button, a {
 }
 .lichtbox-dot.aktiv { background: white; }
 
+/* === Standort-Button === */
+.standort-btn {
+    width: 30px;
+    height: 30px;
+    background: white;
+    border: none;
+    cursor: pointer;
+    font-size: 1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    box-shadow: none;
+}
+.standort-btn:hover  { background: #f4f4f4; }
+.standort-btn:active { background: #e8e8e8; }
+
 /* === Live-Standort-Punkt === */
 .standort-dot {
     width: 18px;
