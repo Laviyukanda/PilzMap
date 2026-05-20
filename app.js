@@ -99,7 +99,7 @@ fetch('nationalpark.json')
     })
     .catch(function(fehler) { console.warn("Nationalparks-Datei fehlt noch:", fehler); });
 
-// === 4. Live-Standort abfragen ===
+// === 4. Live-Standort abfragen (via watchPosition – kein auto-setView) ===
 let _standortMarker = null;
 let _standortKreis  = null;
 let _ersterStandort = true;
@@ -111,62 +111,43 @@ const _standortIcon = L.divIcon({
     iconAnchor: [9, 9]
 });
 
-function standortGefunden(e) {
-    if (_standortMarker) {
-        _standortMarker.setLatLng(e.latlng);
-        _standortKreis.setLatLng(e.latlng).setRadius(e.accuracy);
-    } else {
-        _standortMarker = L.marker(e.latlng, { icon: _standortIcon, zIndexOffset: 1000 }).addTo(map);
-        _standortKreis  = L.circle(e.latlng, { radius: e.accuracy, color: '#2577b4', weight: 1, fillColor: '#2577b4', fillOpacity: 0.12 }).addTo(map);
-    }
+navigator.geolocation.watchPosition(
+    function(pos) {
+        const latlng   = L.latLng(pos.coords.latitude, pos.coords.longitude);
+        const accuracy = pos.coords.accuracy;
 
-    if (_ersterStandort) {
-        _ersterStandort = false;
-        map.setView(e.latlng, 13);
-        const wetterUrl = `https://api.open-meteo.com/v1/forecast?latitude=${e.latlng.lat}&longitude=${e.latlng.lng}&current_weather=true`;
-        fetch(wetterUrl)
-            .then(function(antwort) { return antwort.json(); })
-            .then(function(daten) {
-                if(daten.current_weather) {
-                    const temp = daten.current_weather.temperature;
-                    const hoehe = daten.elevation ?? "Unbekannt";
-                    const anzeigeFeld = document.getElementById('wetter-anzeige');
-                    if(anzeigeFeld) {
-                        anzeigeFeld.innerHTML = `${temp} °C | 🏔️ Höhe: ${hoehe} Meter`;
+        if (_standortMarker) {
+            _standortMarker.setLatLng(latlng);
+            _standortKreis.setLatLng(latlng).setRadius(accuracy);
+        } else {
+            _standortMarker = L.marker(latlng, { icon: _standortIcon, zIndexOffset: 1000 }).addTo(map);
+            _standortKreis  = L.circle(latlng, { radius: accuracy, color: '#2577b4', weight: 1, fillColor: '#2577b4', fillOpacity: 0.12 }).addTo(map);
+        }
+
+        if (_ersterStandort) {
+            _ersterStandort = false;
+            map.setView(latlng, 13);
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true`)
+                .then(r => r.json())
+                .then(function(daten) {
+                    if (daten.current_weather) {
+                        const anzeigeFeld = document.getElementById('wetter-anzeige');
+                        if (anzeigeFeld) anzeigeFeld.innerHTML =
+                            `${daten.current_weather.temperature} °C | 🏔️ Höhe: ${daten.elevation ?? '?'} m`;
                     }
-                }
-            })
-            .catch(function(fehler) { console.error("Wetter-Verbindung fehlgeschlagen:", fehler); });
+                })
+                .catch(function(err) { console.error('Wetter:', err); });
+        }
+    },
+    function(err) { console.warn('GPS-Fehler:', err.message); },
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+);
+
+window.zentriereAufStandort = function() {
+    if (_standortMarker) {
+        map.setView(_standortMarker.getLatLng(), 15);
     }
-}
-
-function standortFehler(e) {
-    alert("GPS-Fehler: " + e.message);
-}
-
-map.on('locationfound', standortGefunden);
-map.on('locationerror', standortFehler);
-map.locate({ setView: false, watch: true });
-
-// Standort-Button (zurück zum eigenen Standort)
-const standortControl = L.Control.extend({
-    options: { position: 'topleft' },
-    onAdd: function() {
-        const btn = L.DomUtil.create('button', 'standort-btn leaflet-bar');
-        btn.innerHTML = '📍';
-        btn.title = 'Zu meinem Standort';
-        L.DomEvent.on(btn, 'click', function(e) {
-            L.DomEvent.stopPropagation(e);
-            if (_standortMarker) {
-                map.setView(_standortMarker.getLatLng(), 15);
-            } else {
-                alert('Standort noch nicht verfügbar.');
-            }
-        });
-        return btn;
-    }
-});
-new standortControl().addTo(map);
+};
 
 // === 5. Live-Wetter & Ortsname per Mausklick ===
 map.on('click', function(e) {

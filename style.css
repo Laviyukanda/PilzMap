@@ -434,6 +434,9 @@ button, a {
     /* ✕-Button im Panel auf Handy noch größer */
     #filter-panel-kopf button { width: 44px; height: 44px; font-size: 1.35em; }
 
+    /* Standort-Button auf Handy */
+    #standort-btn { padding: 8px 12px; font-size: 1.05em; }
+
     /* Leaflet Popup-Schließen-Button */
     .leaflet-popup-close-button {
         width: 28px !important;
@@ -550,22 +553,22 @@ button, a {
 }
 .lichtbox-dot.aktiv { background: white; }
 
-/* === Standort-Button === */
-.standort-btn {
-    width: 30px;
-    height: 30px;
-    background: white;
-    border: none;
-    cursor: pointer;
+/* === Standort-Button (Header) === */
+#standort-btn {
+    background: rgba(255,255,255,0.18);
+    color: white;
+    border: 1.5px solid rgba(255,255,255,0.45);
+    border-radius: 20px;
+    padding: 6px 12px;
     font-size: 1em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    box-shadow: none;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
-.standort-btn:hover  { background: #f4f4f4; }
-.standort-btn:active { background: #e8e8e8; }
+#standort-btn:hover  { background: rgba(255,255,255,0.3); }
+#standort-btn:active { background: rgba(255,255,255,0.4); }
 
 /* === Live-Standort-Punkt === */
 .standort-dot {
