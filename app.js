@@ -163,7 +163,7 @@ map.on('click', function(e) {
                         for(let i = 0; i < 7; i++) { regenSumme += regenMengen[i] || 0; }
                         regenSumme = Math.round(regenSumme * 10) / 10;
 
-                        // 1. HTML setzen (OHNE onclick!)
+                        // 1. HTML mit direkten onclick-Attributen setzen
                         ladePopup.setContent(`
                             <div style="font-family: 'Segoe UI', Tahoma, sans-serif; min-width: 240px; padding: 5px;">
                                 <div style="text-align: center; margin-bottom: 12px;">
@@ -173,14 +173,16 @@ map.on('click', function(e) {
                                 </div>
                                 <div style="border-top: 1px solid #eee; padding-top: 10px;">
                                     <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                                        <button id="btn-add" style="flex: 1; padding: 8px 4px; background: #2ca25f; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">➕ Ziel</button>
-                                        <button id="btn-back" style="flex: 1; padding: 8px 4px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">🔙 Zurück</button>
+                                        <button onclick="window.fuegeWegpunktHinzu(${latR}, ${lngR})" style="flex: 1; padding: 8px 4px; background: #2ca25f; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">➕ Ziel</button>
+                                        <button onclick="window.entferneLetztenWegpunkt()" style="flex: 1; padding: 8px 4px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">🔙 Zurück</button>
                                     </div>
-                                    <button id="btn-eval" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #8e44ad; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">🏁 Tour auswerten</button>
-                                    <button id="btn-clear" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #7f8c8d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8em;">🗑️ Route verwerfen</button>
+                                    <button onclick="window.oeffneTourAuswertung()" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #8e44ad; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85em;">🏁 Tour auswerten</button>
+                                    <button onclick="window.routeKomplettLoeschen()" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #7f8c8d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8em;">🗑️ Route verwerfen</button>
                                 </div>
                             </div>
                         `);
+
+// 2. Den alten Block "map.once('popupopen', ...)" entfernst du komplett, der wird nicht mehr benötigt!
 
                         // 2. Buttons "scharf schalten", sobald das Popup auf der Karte ist
                         map.once('popupopen', function() {
