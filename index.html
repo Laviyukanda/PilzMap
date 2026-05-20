@@ -71,6 +71,15 @@
         </div>
     </div>
 
+    <!-- Foto-Lightbox -->
+    <div id="lichtbox" onclick="window.schliesseLichtbox()">
+        <button id="lichtbox-schliessen" onclick="window.schliesseLichtbox()">✕</button>
+        <button id="lichtbox-zurueck" class="lichtbox-pfeil" onclick="event.stopPropagation(); window.lichtboxNavigiere(-1)">&#8249;</button>
+        <img id="lichtbox-bild" onclick="event.stopPropagation()" alt="">
+        <button id="lichtbox-weiter" class="lichtbox-pfeil" onclick="event.stopPropagation(); window.lichtboxNavigiere(1)">&#8250;</button>
+        <div id="lichtbox-dots"></div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js" defer></script>
     <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js" defer></script>

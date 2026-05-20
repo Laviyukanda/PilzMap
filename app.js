@@ -297,16 +297,63 @@ window.generiereAnsicht = function(id) {
         <p style="margin: 0 0 12px 0; color: #444;">${p.notiz || "<i>Keine Notiz</i>"}</p>
         <div style="display: flex; flex-direction: column; gap: 6px;">`;
     
-    if (p.foto_url) { html += `<img src="${p.foto_url}" style="width: 100%; max-height: 220px; object-fit: contain; background: #f9f9f9; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.15);">`; }
+    if (p.foto_url) { html += `<img src="${p.foto_url}" onclick="window.oeffneLichtbox(${id},0)" style="width:100%;max-height:220px;object-fit:contain;background:#f9f9f9;border-radius:6px;box-shadow:0 2px 5px rgba(0,0,0,0.15);cursor:pointer;">`; }
     if (p.foto_url_2 || p.foto_url_3) {
-        html += `<div style="display: flex; gap: 6px; justify-content: center;">`;
-        if (p.foto_url_2) { html += `<img src="${p.foto_url_2}" style="flex: 1; width: 100%; height: 100px; object-fit: contain; background: #f9f9f9; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">`; }
-        if (p.foto_url_3) { html += `<img src="${p.foto_url_3}" style="flex: 1; width: 100%; height: 100px; object-fit: contain; background: #f9f9f9; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">`; }
+        html += `<div style="display:flex;gap:6px;justify-content:center;">`;
+        if (p.foto_url_2) { html += `<img src="${p.foto_url_2}" onclick="window.oeffneLichtbox(${id},1)" style="flex:1;width:100%;height:100px;object-fit:contain;background:#f9f9f9;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.15);cursor:pointer;">`; }
+        if (p.foto_url_3) { html += `<img src="${p.foto_url_3}" onclick="window.oeffneLichtbox(${id},2)" style="flex:1;width:100%;height:100px;object-fit:contain;background:#f9f9f9;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.15);cursor:pointer;">`; }
         html += `</div>`;
     }
     html += `</div></div>`;
     return html;
 };
+
+// === Foto-Lightbox ===
+let _lichtboxFotos = [];
+let _lichtboxIndex = 0;
+let _lichtboxTouchX = null;
+
+window.oeffneLichtbox = function(pilzId, startIndex) {
+    const p = window.pilzDatenSpeicher[pilzId];
+    _lichtboxFotos = [p.foto_url, p.foto_url_2, p.foto_url_3].filter(Boolean);
+    _lichtboxIndex = Math.min(startIndex, _lichtboxFotos.length - 1);
+    _lichtboxAktualisiere();
+    document.getElementById('lichtbox').classList.add('offen');
+};
+
+window.schliesseLichtbox = function() {
+    document.getElementById('lichtbox').classList.remove('offen');
+};
+
+window.lichtboxNavigiere = function(richtung) {
+    _lichtboxIndex = Math.max(0, Math.min(_lichtboxFotos.length - 1, _lichtboxIndex + richtung));
+    _lichtboxAktualisiere();
+};
+
+function _lichtboxAktualisiere() {
+    document.getElementById('lichtbox-bild').src = _lichtboxFotos[_lichtboxIndex];
+    document.getElementById('lichtbox-zurueck').classList.toggle('versteckt', _lichtboxIndex === 0);
+    document.getElementById('lichtbox-weiter').classList.toggle('versteckt', _lichtboxIndex === _lichtboxFotos.length - 1);
+    const dots = document.getElementById('lichtbox-dots');
+    dots.innerHTML = _lichtboxFotos.length > 1
+        ? _lichtboxFotos.map((_, i) => `<div class="lichtbox-dot${i === _lichtboxIndex ? ' aktiv' : ''}"></div>`).join('')
+        : '';
+}
+
+const _lb = document.getElementById('lichtbox');
+_lb.addEventListener('touchstart', function(e) { _lichtboxTouchX = e.touches[0].clientX; }, { passive: true });
+_lb.addEventListener('touchend',   function(e) {
+    if (_lichtboxTouchX === null) return;
+    const diff = _lichtboxTouchX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) window.lichtboxNavigiere(diff > 0 ? 1 : -1);
+    _lichtboxTouchX = null;
+});
+document.addEventListener('keydown', function(e) {
+    if (!_lb.classList.contains('offen')) return;
+    if (e.key === 'ArrowRight') window.lichtboxNavigiere(1);
+    if (e.key === 'ArrowLeft')  window.lichtboxNavigiere(-1);
+    if (e.key === 'Escape')     window.schliesseLichtbox();
+});
 
 window.oeffneBearbeitung = function(id) {
     const p = window.pilzDatenSpeicher[id];

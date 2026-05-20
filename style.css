@@ -472,6 +472,88 @@ button, a {
 .leaflet-routing-alt,
 .leaflet-routing-geocoders { display: none !important; }
 
+/* === Foto-Lightbox === */
+#lichtbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.93);
+    z-index: 9000;
+    align-items: center;
+    justify-content: center;
+}
+#lichtbox.offen { display: flex; }
+
+#lichtbox-bild {
+    max-width: 95vw;
+    max-height: 85vh;
+    object-fit: contain;
+    border-radius: 8px;
+    user-select: none;
+    -webkit-user-drag: none;
+    touch-action: pan-y;
+}
+
+#lichtbox-schliessen {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 1.3em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+#lichtbox-schliessen:active { background: rgba(255,255,255,0.3); }
+
+.lichtbox-pfeil {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 2em;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    transition: background 0.15s;
+}
+.lichtbox-pfeil:active { background: rgba(255,255,255,0.3); }
+.lichtbox-pfeil.versteckt { display: none; }
+#lichtbox-zurueck { left: 12px; }
+#lichtbox-weiter  { right: 12px; }
+
+#lichtbox-dots {
+    position: absolute;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+}
+.lichtbox-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.35);
+    transition: background 0.2s;
+}
+.lichtbox-dot.aktiv { background: white; }
+
 /* === Live-Standort-Punkt === */
 .standort-dot {
     width: 18px;
