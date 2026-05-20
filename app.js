@@ -43,7 +43,7 @@ const overlayKarten = {
     "🌧️ Regenradar Live (DWD)": regenRadarDWD,
     "📊 7-Tage-Regen (Messpunkte)": stationenLayer,
     "🌳 Bäume (OSM)": bwiLayer,
-    "🧪 Boden-pH (BWI)": phBodenLayer
+    "🌿 Bodenvegetation (BWI 2002)": phBodenLayer
 };
 L.control.layers(basisKarten, overlayKarten).addTo(map);
 
@@ -200,37 +200,45 @@ fetch('ph-bodenwerte.json')
             onEachFeature: function(feature, layer) {
                 const p     = feature.properties;
                 const score = (p.sbv01 || 0) + (p.sbv02 || 0) + (p.sbv03 || 0) + (p.sbv04 || 0);
-                const phText = score >= 8 ? 'sehr sauer (pH ~3,5–4)' :
-                               score >= 6 ? 'sauer (pH ~4–4,5)' :
-                               score >= 4 ? 'mäßig sauer (pH ~4,5–5)' :
-                               score >= 2 ? 'leicht sauer (pH ~5–5,5)' :
-                                            'gering sauer (pH >5,5)';
+                const saureText = score >= 8 ? 'Säurezeiger dominant (pH ~3,5–4)' :
+                                  score >= 6 ? 'Säurezeiger häufig (pH ~4–4,5)' :
+                                  score >= 4 ? 'Säurezeiger mäßig (pH ~4,5–5)' :
+                                  score >= 2 ? 'Säurezeiger selten (pH ~5–5,5)' :
+                                               'kaum Säurezeiger (pH >5,5)';
                 layer.bindPopup(
-                    '🧪 <b>Boden-pH / Waldvegetation</b><br>' +
-                    'Bundesland: ' + (p.bl_txt || '–') + '<br>' +
+                    '🌿 <b>Bodenvegetation (BWI 2002)</b><br>' +
+                    'Bundesland: ' + (p.bl_txt  || '–') + '<br>' +
                     'Waldtyp: '    + (p.wald_txt || '–') + '<br>' +
                     '<hr style="margin:4px 0;">' +
-                    'pH-Einschätzung: <b>' + phText + '</b><br>' +
-                    '<small>Azidität-Index: ' + score + '/12<br>' +
-                    'Heidelbeere: '  + (p.sbv02 || 0) +
-                    ' | Preiselbeere: ' + (p.sbv03 || 0) +
-                    ' | Heidekraut: '   + (p.sbv04 || 0) + '</small>'
+                    '<b>' + saureText + '</b><br>' +
+                    '<small style="color:#555;">Schätzung aus Zeigerpflanzen-Deckung (sbv01–04):</small><br>' +
+                    '<small>' +
+                    '🌾 Drahtschmiele: '  + (p.sbv01 || 0) + '<br>' +
+                    '🫐 Heidelbeere: '    + (p.sbv02 || 0) + '<br>' +
+                    '🔴 Preiselbeere: '   + (p.sbv03 || 0) + '<br>' +
+                    '🌸 Heidekraut: '     + (p.sbv04 || 0) + '<br>' +
+                    'Säure-Index: '       + score + ' / 12</small>'
                 );
             }
         }).addTo(phBodenLayer);
     })
-    .catch(function(fehler) { console.warn('pH-Bodenwerte: Lade-Fehler:', fehler); });
+    .catch(function(fehler) { console.warn('Bodenvegetation (BWI): Lade-Fehler:', fehler); });
 
 const phLegende = L.control({ position: 'bottomright' });
 phLegende.onAdd = function() {
     const div = L.DomUtil.create('div', 'info legend');
     div.style.cssText = 'background:white;padding:10px;border-radius:5px;box-shadow:0 0 15px rgba(0,0,0,0.2);font-family:sans-serif;font-size:13px;line-height:1.8;';
-    div.innerHTML = '<b>🧪 Boden-pH (BWI 2002)</b><br>' +
-        '<i style="background:#1a9641;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;"></i>gering sauer (pH >5,5)<br>' +
-        '<i style="background:#a6d96a;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;"></i>leicht sauer (~5–5,5)<br>' +
-        '<i style="background:#ffffbf;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;"></i>mäßig sauer (~4,5–5)<br>' +
-        '<i style="background:#fdae61;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;"></i>sauer (~4–4,5)<br>' +
-        '<i style="background:#d7191c;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;"></i>sehr sauer (pH ~3,5–4)';
+    div.innerHTML = '<b>🌿 Bodenvegetation (BWI 2002)</b><br>' +
+        '<span style="font-size:0.8em;color:#666;">Säure-Index aus Zeigerpflanzen:<br>' +
+        '🌾 Drahtschmiele · 🫐 Heidelbeere<br>' +
+        '🔴 Preiselbeere · 🌸 Heidekraut</span><br>' +
+        '<hr style="margin:4px 0;border:none;border-top:1px solid #ddd;">' +
+        '<i style="background:#1a9641;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:middle;"></i>kaum Zeigerpflanzen (pH &gt;5,5)<br>' +
+        '<i style="background:#a6d96a;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:middle;"></i>selten (pH ~5–5,5)<br>' +
+        '<i style="background:#ffffbf;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:middle;"></i>mäßig (pH ~4,5–5)<br>' +
+        '<i style="background:#fdae61;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:middle;"></i>häufig (pH ~4–4,5)<br>' +
+        '<i style="background:#d7191c;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:middle;"></i>dominant (pH ~3,5–4)<br>' +
+        '<span style="font-size:0.75em;color:#999;">Quelle: BWI 2002, Thünen Institut</span>';
     return div;
 };
 
@@ -238,31 +246,73 @@ phLegende.onAdd = function() {
 let _baumGeogruppen       = {};
 let _baumDeaktiviertArten = new Set();
 let _baumDebounceTimer    = null;
+let _baumWmsLayer         = null;
+let _baumWmsAktiv         = false;
+
+function _baumWmsHolen() {
+    if (!_baumWmsLayer) {
+        _baumWmsLayer = L.tileLayer.wms(
+            'https://image.discomap.eea.europa.eu/arcgis/services/GioLandPublic/HRL_ForestType_2018/ImageServer/WMSServer',
+            {
+                layers: '0',
+                format: 'image/png',
+                transparent: true,
+                opacity: 0.65,
+                attribution: '© Copernicus Land Monitoring Service 2018 (EEA)'
+            }
+        );
+    }
+    return _baumWmsLayer;
+}
 
 function getBaumartFarbe(name) {
-    if (!name) return '#888888';
+    if (!name) return '#4a7ab5';
     const n = name.toLowerCase();
-    if (n.includes('fichte')    || n.includes('picea'))                           return '#1a5c1a';
-    if (n.includes('kiefer')    || n.includes('pinus'))                           return '#4a8c4a';
-    if (n.includes('tanne')     || n.includes('abies'))                           return '#2d6b3a';
-    if (n.includes('lärche')    || n.includes('laerche') || n.includes('larix'))  return '#8ab83a';
-    if (n.includes('douglasie') || n.includes('pseudotsuga'))                     return '#3a8c7a';
-    if (n.includes('buche')     || n.includes('fagus'))                           return '#d4762a';
-    if (n.includes('eiche')     || n.includes('quercus'))                         return '#8b4513';
-    if (n.includes('esche')     || n.includes('fraxinus'))                        return '#9b9b2a';
-    if (n.includes('ahorn')     || n.includes('acer'))                            return '#c0541a';
-    if (n.includes('birke')     || n.includes('betula'))                          return '#c8b400';
-    if (n.includes('erle')      || n.includes('alnus'))                           return '#7a5c9a';
-    if (n.includes('pappel')    || n.includes('populus'))                         return '#2a9d9d';
-    if (n.includes('linde')     || n.includes('tilia'))                           return '#a0c040';
-    if (n.includes('kastanie')  || n.includes('castanea') || n.includes('aesculus')) return '#cc6600';
-    if (n.includes('walnuss')   || n.includes('juglans'))                         return '#996633';
-    if (n.includes('kirsche')   || n.includes('prunus'))                          return '#cc3366';
-    return '#888888';
+    if (n.includes('fichte')    || n.includes('picea'))                               return '#7a3a1a';
+    if (n.includes('kiefer')    || n.includes('pinus') || n.includes('föhre'))        return '#c03020';
+    if (n.includes('tanne')     || n.includes('abies'))                               return '#e0901a';
+    if (n.includes('lärche')    || n.includes('laerche') || n.includes('larix'))      return '#c05090';
+    if (n.includes('douglasie') || n.includes('pseudotsuga'))                         return '#8ac820';
+    if (n.includes('buche')     || n.includes('fagus'))                               return '#2d6b1a';
+    if (n.includes('eiche')     || n.includes('quercus'))                             return '#5a9a2a';
+    if (n.includes('esche')     || n.includes('fraxinus'))                            return '#9aba2a';
+    if (n.includes('ahorn')     || n.includes('acer'))                                return '#c07020';
+    if (n.includes('birke')     || n.includes('betula'))                              return '#3bc0c0';
+    if (n.includes('erle')      || n.includes('alnus'))                               return '#8a9a3a';
+    if (n.includes('pappel')    || n.includes('populus'))                             return '#2a9d9d';
+    if (n.includes('linde')     || n.includes('tilia'))                               return '#a0c040';
+    if (n.includes('kirsche')   || n.includes('prunus'))                              return '#cc3366';
+    if (n.includes('kastanie')  || n.includes('castanea') || n.includes('aesculus'))  return '#cc6600';
+    if (n.includes('walnuss')   || n.includes('juglans'))                             return '#996633';
+    if (n === 'laubwald')   return '#5a9a4a';
+    if (n === 'nadelwald')  return '#2a4a2a';
+    if (n === 'mischwald')  return '#4a7a3a';
+    return '#4a7ab5';
 }
 
 function _baumArtLabel(tags) {
-    return (tags && (tags['species:de'] || tags['name'] || tags['species'])) || 'Unbekannt';
+    if (!tags) return 'Andere';
+    const raw = (tags['species:de'] || tags['species'] || tags['taxon'] || '').toLowerCase();
+    if (raw.includes('buche')     || raw.includes('fagus'))                       return 'Buche';
+    if (raw.includes('eiche')     || raw.includes('quercus'))                     return 'Eiche';
+    if (raw.includes('fichte')    || raw.includes('picea'))                       return 'Fichte';
+    if (raw.includes('kiefer')    || raw.includes('pinus') || raw.includes('föhre')) return 'Kiefer';
+    if (raw.includes('lärche')    || raw.includes('laerche') || raw.includes('larix')) return 'Lärche';
+    if (raw.includes('tanne')     || raw.includes('abies'))                       return 'Tanne';
+    if (raw.includes('douglasie') || raw.includes('pseudotsuga'))                 return 'Douglasie';
+    if (raw.includes('birke')     || raw.includes('betula'))                      return 'Birke';
+    if (raw.includes('erle')      || raw.includes('alnus'))                       return 'Erle';
+    if (raw.includes('esche')     || raw.includes('fraxinus'))                    return 'Esche';
+    if (raw.includes('ahorn')     || raw.includes('acer'))                        return 'Ahorn';
+    if (raw.includes('linde')     || raw.includes('tilia'))                       return 'Linde';
+    if (raw.includes('pappel')    || raw.includes('populus'))                     return 'Pappel';
+    if (raw.includes('kirsche')   || raw.includes('prunus'))                      return 'Kirsche';
+    if (raw) return raw.charAt(0).toUpperCase() + raw.slice(1, 24);
+    const leaf = tags['leaf_type'] || '';
+    if (leaf === 'broadleaved')  return 'Laubwald';
+    if (leaf === 'needleleaved') return 'Nadelwald';
+    if (leaf === 'mixed')        return 'Mischwald';
+    return 'Andere';
 }
 
 function ladeBaeumeInSicht() {
@@ -280,21 +330,31 @@ function _ladeBaeumeJetzt() {
     const zoomHinw = document.getElementById('baum-zoom-hinweis');
     const ladeHinw = document.getElementById('baum-ladehinweis');
 
-    if (zoom < 13) {
-        bwiLayer.clearLayers();
+    if (zoom < 12) {
+        // Overpass-Polygone entfernen, WMS-Übersicht sicherstellen
+        Object.values(_baumGeogruppen).forEach(function(g) { bwiLayer.removeLayer(g); });
         _baumGeogruppen = {};
+        if (!_baumWmsAktiv) { bwiLayer.addLayer(_baumWmsHolen()); _baumWmsAktiv = true; }
         if (zoomHinw) zoomHinw.style.display = '';
         if (ladeHinw) ladeHinw.style.display  = 'none';
         _aktualisiereBaumartListe({});
         return;
     }
+    // Zoom ≥ 12: WMS durch Overpass-Artenpolygone ersetzen
+    if (_baumWmsAktiv) { bwiLayer.removeLayer(_baumWmsHolen()); _baumWmsAktiv = false; }
     if (zoomHinw) zoomHinw.style.display = 'none';
     if (ladeHinw) ladeHinw.style.display  = '';
 
-    const b     = map.getBounds();
-    const query = '[out:json][timeout:25];\nnode["natural"="tree"](' +
-        b.getSouth().toFixed(5) + ',' + b.getWest().toFixed(5) + ',' +
-        b.getNorth().toFixed(5) + ',' + b.getEast().toFixed(5) + ');\nout body;';
+    const b    = map.getBounds();
+    const bbox = b.getSouth().toFixed(5) + ',' + b.getWest().toFixed(5) + ',' +
+                 b.getNorth().toFixed(5) + ',' + b.getEast().toFixed(5);
+    const query =
+        '[out:json][timeout:30];\n' +
+        '(\n' +
+        '  way["natural"="wood"]('    + bbox + ');\n' +
+        '  way["landuse"="forest"]('  + bbox + ');\n' +
+        ');\n' +
+        'out body;\n>;\nout skel qt;';
 
     fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
@@ -306,30 +366,43 @@ function _ladeBaeumeJetzt() {
         })
         .then(function(data) {
             if (ladeHinw) ladeHinw.style.display = 'none';
-            bwiLayer.clearLayers();
+            Object.values(_baumGeogruppen).forEach(function(g) { bwiLayer.removeLayer(g); });
             _baumGeogruppen = {};
 
-            (data.elements || []).forEach(function(node) {
-                if (!node.lat || !node.lon) return;
-                const tags  = node.tags || {};
+            // Knotenkoordinaten indexieren
+            const nodeMap = {};
+            (data.elements || []).forEach(function(el) {
+                if (el.type === 'node') nodeMap[el.id] = [el.lat, el.lon];
+            });
+
+            // Wege als Polygone rendern
+            (data.elements || []).forEach(function(el) {
+                if (el.type !== 'way') return;
+                const coords = (el.nodes || []).map(function(id) { return nodeMap[id]; }).filter(Boolean);
+                if (coords.length < 3) return;
+
+                const tags  = el.tags || {};
                 const art   = _baumArtLabel(tags);
                 const farbe = getBaumartFarbe(art);
 
                 if (!_baumGeogruppen[art]) _baumGeogruppen[art] = L.layerGroup();
 
-                const marker = L.circleMarker([node.lat, node.lon], {
-                    radius: 5, fillColor: farbe,
-                    color: '#fff', weight: 0.8, fillOpacity: 0.85
+                const poly = L.polygon(coords, {
+                    color: farbe, fillColor: farbe,
+                    weight: 0.8, fillOpacity: 0.5, opacity: 0.9
                 });
-                const hoehe  = tags.height        ? tags.height        + ' m' : '–';
-                const umfang = tags.circumference ? tags.circumference + ' m' : '–';
-                const latName = tags['species:de'] || tags.species || '';
-                marker.bindPopup(
-                    '<b>🌳 ' + art + '</b><br>' +
-                    (latName ? 'Art: ' + latName + '<br>' : '') +
-                    'Höhe: ' + hoehe + ' | Umfang: ' + umfang
+
+                const name    = tags.name           || '';
+                const spezDe  = tags['species:de']  || '';
+                const spezLat = tags['species']      || '';
+                const leaf    = tags['leaf_type']    || '';
+                poly.bindPopup(
+                    '🌲 <b>' + art + '</b>' +
+                    (name   ? '<br><span style="font-size:0.88em">' + name + '</span>' : '') +
+                    (spezDe ? '<br>Art: ' + spezDe : (spezLat ? '<br>Art: ' + spezLat : '')) +
+                    (leaf   ? '<br>Laubtyp: ' + leaf : '')
                 );
-                _baumGeogruppen[art].addLayer(marker);
+                _baumGeogruppen[art].addLayer(poly);
             });
 
             Object.keys(_baumGeogruppen).forEach(function(art) {
@@ -359,7 +432,7 @@ function _aktualisiereBaumartListe(gruppen) {
         return '<label style="display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer;font-size:0.85em;">' +
             '<input type="checkbox"' + (an ? ' checked' : '') +
             ' onchange="window.toggleBaumart(\'' + safeArt + '\',this.checked)">' +
-            '<i style="background:' + farbe + ';width:11px;height:11px;border-radius:50%;display:inline-block;flex-shrink:0;"></i>' +
+            '<i style="background:' + farbe + ';width:12px;height:12px;border-radius:2px;display:inline-block;flex-shrink:0;"></i>' +
             '<span>' + art + ' <span style="color:#aaa;font-size:0.8em;">(' + anzahl + ')</span></span></label>';
     }).join('');
 }
@@ -852,6 +925,8 @@ map.on('overlayadd', function(e) {
             panel.classList.add('offen');
             if (btn) btn.classList.add('aktiv');
         }
+        bwiLayer.addLayer(_baumWmsHolen());
+        _baumWmsAktiv = true;
         ladeBaeumeInSicht();
     }
 });
@@ -869,6 +944,7 @@ map.on('overlayremove', function(e) {
         if (sek) sek.style.display = 'none';
         bwiLayer.clearLayers();
         _baumGeogruppen = {};
+        _baumWmsAktiv = false;
     }
 });
 
