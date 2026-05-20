@@ -185,8 +185,7 @@ map.on('click', function(e) {
                                     });
                                 }
                             }, 100);
-                        });
-
+                        
                     } else {
                         ladePopup.setContent(`📍 <b>${ortsName}</b><br>❌ Keine Wetterdaten gefunden.`);
                     }
