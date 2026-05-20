@@ -473,8 +473,9 @@ window.fuegeWegpunktHinzu = function(lat, lng) {
 if (typeof L.Control.geocoder === 'function') {
     L.Control.geocoder({ position: 'topleft', placeholder: 'Ort oder Wald suchen...' }).addTo(map);
 }
-// 🚨 NEU: Der Zündschlüssel muss hier definiert werden!
-const ORS_API_KEY = '5b3ce3597851110001cf624898c0d9504a5342eb9b4b732fb4c2049d';
+
+// 🚨 HIER fügst du deinen kostenlosen Key von graphhopper.com ein:
+const GH_API_KEY = 'HIER_DEINEN_KEY_EINTRAGEN'; 
 
 window.routenPlaner = L.Routing.control({
     waypoints: [],
@@ -483,9 +484,12 @@ window.routenPlaner = L.Routing.control({
     addWaypoints: true,
     fitSelectedRoutes: true,
     language: 'de',
-    router: new L.Routing.OpenRouteService(ORS_API_KEY, {
-        profile: 'foot-walking',
-        elevation: true // 🏔️ NEU: Wir fordern ein 3D-Höhenprofil an!
+    // 🐐 NEU: Der GraphHopper-Wandermotor!
+    router: L.Routing.graphHopper(GH_API_KEY, {
+        urlParameters: {
+            vehicle: 'foot', // Das Fußgänger-Profil
+            elevation: true  // WICHTIG: Die Z-Koordinate für deine Höhenmeter!
+        }
     })
 }).addTo(map);
 
