@@ -457,7 +457,7 @@ button, a {
         max-width: calc(100vw - 28px) !important;
     }
     .leaflet-popup-content {
-        margin: 10px 12px !important;
+        margin: 10px 30px 10px 12px !important; /* rechts Platz für ✕-Button */
         overflow-x: hidden;
     }
 
