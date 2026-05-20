@@ -131,7 +131,9 @@ map.locate({setView: true, maxZoom: 13});
 
 // === 5. Live-Wetter, Ortsname & 7-Tage-Regen per Mausklick ===
 map.on('click', function(e) {
-    const latR = lat.toFixed(6);
+    const lat = e.latlng.lat;          // ✅ erst lat/lng aus dem Event holen
+    const lng = e.latlng.lng;
+    const latR = lat.toFixed(6);       // ✅ dann runden
     const lngR = lng.toFixed(6);
 
     const ladePopup = L.popup()
@@ -139,8 +141,8 @@ map.on('click', function(e) {
         .setContent("⏳ Assistenten suchen Daten...")
         .openOn(map);
 
-    const wetterUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&daily=precipitation_sum&past_days=7&forecast_days=1&timezone=Europe/Berlin`;
-    const ortsUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+    const wetterUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latR}&longitude=${lngR}&current_weather=true&daily=precipitation_sum&past_days=7&forecast_days=1&timezone=Europe/Berlin`;
+    const ortsUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latR}&lon=${lngR}`;
 
     fetch(ortsUrl)
         .then(function(antwort) { return antwort.json(); })
@@ -162,18 +164,28 @@ map.on('click', function(e) {
                         for(let i = 0; i < 7; i++) { regenSumme += regenMengen[i] || 0; }
                         regenSumme = Math.round(regenSumme * 10) / 10;
 
-                        // REPARIERT: Die Variablen lat und lng werden hier jetzt absolut sauber injiziert!
                         ladePopup.setContent(`
                             <div style="text-align: center; font-family: sans-serif;">
                                 📍 <b>${ortsName}</b><br>
                                 🌡️ ${temperatur} °C | 💨 ${wind} km/h<br>
                                 🌧️ <b>Regen (7 Tage): ${regenSumme} mm</b>
                                 <hr style="margin: 10px 0; border: 0; border-top: 1px solid #ccc;">
-                                <button onclick="speichereAuto(${lat}, ${lng})" style="width: 100%; padding: 6px; margin-bottom: 5px; background: #3388ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                <button id="btn-auto-parken" style="width: 100%; padding: 6px; margin-bottom: 5px; background: #3388ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
                                     🚗 Hier Auto parken
                                 </button>
                             </div>
                         `);
+
+                        // Event per popupopen setzen (kein onclick im HTML!)
+                        map.once('popupopen', function() {
+                            setTimeout(function() {
+                                const btn = document.getElementById('btn-auto-parken');
+                                if (btn) btn.addEventListener('click', function() {
+                                    speichereAuto(lat, lng);
+                                });
+                            }, 50);
+                        });
+
                     } else {
                         ladePopup.setContent(`📍 <b>${ortsName}</b><br>❌ Keine Wetterdaten gefunden.`);
                     }
@@ -197,6 +209,7 @@ window.pilzDatenSpeicher = {};
 window.pilzMarkerSpeicher = {}; 
 
 // === 6.1. Neues Fund-Formular (Rechtsklick) ===
+// === 6.1. Neues Fund-Formular (Rechtsklick) ===
 map.on('contextmenu', function(e) {
     const lat = e.latlng.lat;
     const lng = e.latlng.lng;
@@ -215,9 +228,6 @@ map.on('contextmenu', function(e) {
             <input type="file" id="neu-foto" accept="image/*" multiple style="width: 100%; margin-bottom: 10px;"><br>
             <button onclick="speichereNeuenFund(${lat}, ${lng})" style="width: 100%; padding: 8px; background: #2ca25f; color: white; border: none; border-radius: 5px; cursor: pointer;">
                 Speichern & Hochladen
-            </button>
-            <button onclick="speichereAuto(${latR}, ${lngR})" ...>
-                🚗 Hier Auto parken
             </button>
             <div id="upload-status" style="margin-top: 10px; font-size: 0.9em; font-weight: bold;"></div>
         </div>
