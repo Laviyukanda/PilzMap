@@ -671,24 +671,18 @@ map.on('popupopen', function() {
 
 // Funktion 1: Auto parken
 window.speichereAuto = function(lat, lng) {
-    entferneAlleRoutenLayer();
-    // ✅ Alte Route und Pins zuerst komplett entfernen
-    if (window.routenPlaner) {
-        map.removeControl(window.routenPlaner);
-        window.routenPlaner = L.Routing.control({
-            waypoints: [],
-            routeWhileDragging: true,
-            show: false,
-            addWaypoints: true,
-            fitSelectedRoutes: true,
-            language: 'de'
-        }).addTo(map);
-        window.routenPlaner.on('routesfound', function(e) {
-            if(e.routes && e.routes[0]) {
-                berechneWanderStatistik(e.routes[0]);
-            }
-        });
-    }
+    entferneAlleRoutenLayer(); // 🧽 Räumt alle alten Routen-Linien von der Karte
+    
+    window.meinAutoStandort = L.latLng(lat, lng);
+    if (autoMarker) map.removeLayer(autoMarker);
+    map.closePopup();
+    localStorage.setItem('meinParkplatz', JSON.stringify({ lat: lat, lng: lng }));
+
+    autoMarker = L.marker(window.meinAutoStandort, { icon: autoIcon })
+        .addTo(map)
+        .bindPopup(erstelleAutoMenue())
+        .openPopup();
+};
 
     window.meinAutoStandort = L.latLng(lat, lng);
     if (autoMarker) map.removeLayer(autoMarker);
@@ -718,31 +712,13 @@ window.routeZumAuto = function() {
 
 // Funktion 3: Auto löschen
 window.loescheAuto = function() {
-    entferneAlleRoutenLayer();
+    entferneAlleRoutenLayer(); // 🧽 Räumt alle alten Routen-Linien von der Karte
+    
     if (autoMarker) {
         map.removeLayer(autoMarker);
         window.meinAutoStandort = null;
         autoMarker = null;
         localStorage.removeItem('meinParkplatz');
-    }
-    // Route, Linie und alle Pins komplett entfernen
-    if (window.routenPlaner) {
-        window.routenPlaner.setWaypoints([]);
-        // Routing Machine vom Map entfernen und neu hinzufügen
-        map.removeControl(window.routenPlaner);
-        window.routenPlaner = L.Routing.control({
-            waypoints: [],
-            routeWhileDragging: true,
-            show: false,
-            addWaypoints: true,
-            fitSelectedRoutes: true,
-            language: 'de'
-        }).addTo(map);
-        window.routenPlaner.on('routesfound', function(e) {
-            if(e.routes && e.routes[0]) {
-                berechneWanderStatistik(e.routes[0]);
-            }
-        });
     }
     map.closePopup();
 };
