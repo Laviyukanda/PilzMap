@@ -444,17 +444,14 @@ regenLegende.onAdd = function(map) {
 };
 regenLegende.addTo(map);
 
-// === 8. Suchfeld (Simpel) & Routenplaner ===
+// === 8. Suchfeld & Routenplaner ===
 if (typeof L.Control.geocoder === 'function') {
     L.Control.geocoder({ position: 'topleft', placeholder: 'Ort oder Wald suchen...' }).addTo(map);
 }
 
-const ORS_API_KEY = "eyJvcmciOi..."; 
 window.routenPlaner = L.Routing.control({
     waypoints: [],
-    router: L.Routing.openrouteservice(ORS_API_KEY, { 
-        profile: 'foot-hiking' 
-    }),
+    // ← kein router: L.Routing.openrouteservice(...) mehr!
     routeWhileDragging: true,
     show: false,
     addWaypoints: true,
