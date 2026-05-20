@@ -51,10 +51,11 @@ body { font-family: sans-serif; background: #f5f5f5; }
 }
 
 /* Akzentfarbe je Status */
-#routen-bar.status-start       { border-left-color: #e67e22; }
-#routen-bar.status-berechnung  { border-left-color: #3498db; }
-#routen-bar.status-fertig      { border-left-color: #2ca25f; }
-#routen-bar.status-gespeichert { border-left-color: #8e44ad; }
+#routen-bar.status-start        { border-left-color: #e67e22; }
+#routen-bar.status-berechnung   { border-left-color: #3498db; }
+#routen-bar.status-fertig       { border-left-color: #2ca25f; }
+#routen-bar.status-gespeichert  { border-left-color: #8e44ad; }
+#routen-bar.status-aufzeichnung { border-left-color: #e74c3c; }
 
 #routen-bar-inhalt {
     display: flex;
@@ -151,6 +152,45 @@ body { font-family: sans-serif; background: #f5f5f5; }
 @keyframes routen-laden {
     0%   { left: -45%; }
     100% { left: 100%; }
+}
+
+/* === Aufzeichnung-Button (im Header) === */
+#aufzeichnung-btn {
+    background: rgba(255,255,255,0.18);
+    color: white;
+    border: 1.5px solid rgba(255,255,255,0.45);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.85em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+#aufzeichnung-btn:hover { background: rgba(255,255,255,0.3); }
+#aufzeichnung-btn.aktiv {
+    background: rgba(231,76,60,0.75);
+    border-color: #ff6b6b;
+    animation: btn-puls 1.4s ease-in-out infinite;
+}
+@keyframes btn-puls {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.5); }
+    50%       { box-shadow: 0 0 0 6px rgba(231,76,60,0); }
+}
+
+/* Pulsierender Dot in der Routen-Karte */
+.rb-rec-dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    background: #e74c3c;
+    border-radius: 50%;
+    margin-right: 7px;
+    vertical-align: middle;
+    animation: dot-puls 1.2s ease-in-out infinite;
+}
+@keyframes dot-puls {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.35; transform: scale(0.75); }
 }
 
 /* === Filter-Button (im Header) === */
@@ -367,10 +407,11 @@ button, a {
         transform: translateY(calc(100% + 6px));
     }
     #routen-bar.aktiv             { transform: translateY(0); }
-    #routen-bar.status-start      { border-top-color: #e67e22; }
-    #routen-bar.status-berechnung { border-top-color: #3498db; }
-    #routen-bar.status-fertig     { border-top-color: #2ca25f; }
-    #routen-bar.status-gespeichert{ border-top-color: #8e44ad; }
+    #routen-bar.status-start        { border-top-color: #e67e22; }
+    #routen-bar.status-berechnung   { border-top-color: #3498db; }
+    #routen-bar.status-fertig       { border-top-color: #2ca25f; }
+    #routen-bar.status-gespeichert  { border-top-color: #8e44ad; }
+    #routen-bar.status-aufzeichnung { border-top-color: #e74c3c; }
 
     /* Stats-Grid: 4 Felder in einer Zeile (Bottom Sheet ist breit genug) */
     .rb-stats-grid {

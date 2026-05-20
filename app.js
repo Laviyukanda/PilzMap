@@ -484,10 +484,36 @@ window.aktualisiereRoutenBar = function() {
     const inhalt = document.getElementById('routen-bar-inhalt');
     if (!bar || !inhalt) return;
 
-    bar.classList.remove('status-start', 'status-berechnung', 'status-fertig', 'status-gespeichert');
+    bar.classList.remove('status-start', 'status-berechnung', 'status-fertig', 'status-gespeichert', 'status-aufzeichnung');
 
     if (window.routingStatus === 'leer') {
         bar.classList.remove('aktiv');
+        return;
+    }
+
+    if (window.routingStatus === 'aufzeichnung') {
+        bar.classList.add('aktiv', 'status-aufzeichnung');
+        const vergangen = Date.now() - window._aufzeichnungStart;
+        const min = Math.floor(vergangen / 60000);
+        const sek = Math.floor((vergangen % 60000) / 1000);
+        const zeitText = min > 0 ? `${min}m ${sek}s` : `${sek}s`;
+        const distKm = (window._aufzeichnungDistanz / 1000).toFixed(2);
+        inhalt.innerHTML = `
+            <div class="rb-status"><span class="rb-rec-dot"></span>Aufzeichnung läuft</div>
+            <div class="rb-stats-grid" style="grid-template-columns:1fr 1fr;">
+                <div class="rb-stat">
+                    <div class="rb-stat-val">📏 ${distKm} km</div>
+                    <div class="rb-stat-label">Zurückgelegt</div>
+                </div>
+                <div class="rb-stat">
+                    <div class="rb-stat-val">⏱️ ${zeitText}</div>
+                    <div class="rb-stat-label">Dauer</div>
+                </div>
+            </div>
+            <div class="rb-actions">
+                <button class="routen-btn routen-btn-gruen" onclick="window.stoppeAufzeichnung()">⏹ Stopp & Speichern</button>
+                <button class="routen-btn routen-btn-rot"   onclick="window.verwerfAufzeichnung()">🗑️</button>
+            </div>`;
         return;
     }
     bar.classList.add('aktiv');
@@ -1063,6 +1089,152 @@ window.schliesseGespeicherteRoute = function() {
     }
     document.querySelectorAll('.routen-eintrag').forEach(el => el.classList.remove('aktiv'));
     window.angezeigteTourDaten = null;
+    window.routingStatus = 'leer';
+    window.aktualisiereRoutenBar();
+};
+
+// === 13. Live-Route aufzeichnen ===
+window._aufzeichnungAktiv   = false;
+window._aufzeichnungPunkte  = [];
+window._aufzeichnungLinie   = null;
+window._aufzeichnungWatchId = null;
+window._aufzeichnungStart   = null;
+window._aufzeichnungTimer   = null;
+window._aufzeichnungDistanz = 0;
+
+function _aufzeichnungBtnAktualisieren() {
+    const btn = document.getElementById('aufzeichnung-btn');
+    if (!btn) return;
+    if (window._aufzeichnungAktiv) {
+        btn.textContent = '⏺ Läuft…';
+        btn.classList.add('aktiv');
+    } else {
+        btn.textContent = '⏺ Aufzeichnen';
+        btn.classList.remove('aktiv');
+    }
+}
+
+window.toggleAufzeichnung = function() {
+    if (window._aufzeichnungAktiv) window.stoppeAufzeichnung();
+    else window.starteAufzeichnung();
+};
+
+window.starteAufzeichnung = function() {
+    if (!navigator.geolocation) { alert('GPS nicht verfügbar auf diesem Gerät.'); return; }
+
+    window._aufzeichnungAktiv   = true;
+    window._aufzeichnungPunkte  = [];
+    window._aufzeichnungDistanz = 0;
+    window._aufzeichnungStart   = Date.now();
+
+    if (window._aufzeichnungLinie) map.removeLayer(window._aufzeichnungLinie);
+    window._aufzeichnungLinie = L.polyline([], {
+        color: '#e74c3c', weight: 5, opacity: 0.9
+    }).addTo(map);
+
+    window.routingStatus = 'aufzeichnung';
+    window.aktualisiereRoutenBar();
+    _aufzeichnungBtnAktualisieren();
+
+    window._aufzeichnungWatchId = navigator.geolocation.watchPosition(
+        function(pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const alt = pos.coords.altitude || 0;
+
+            if (window._aufzeichnungPunkte.length > 0) {
+                const prev = window._aufzeichnungPunkte[window._aufzeichnungPunkte.length - 1];
+                const distM = turf.distance(
+                    turf.point([prev.lng, prev.lat]),
+                    turf.point([lng, lat]),
+                    { units: 'meters' }
+                );
+                if (distM < 10) return; // GPS-Rauschen filtern
+                window._aufzeichnungDistanz += distM;
+            }
+
+            window._aufzeichnungPunkte.push({ lat, lng, alt });
+            window._aufzeichnungLinie.addLatLng(L.latLng(lat, lng, alt));
+            window.aktualisiereRoutenBar();
+        },
+        function(err) { console.warn('GPS-Fehler:', err.message); },
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
+
+    // Timer für Zeitanzeige (alle 10 Sek)
+    window._aufzeichnungTimer = setInterval(function() {
+        if (window.routingStatus === 'aufzeichnung') window.aktualisiereRoutenBar();
+    }, 10000);
+};
+
+window.stoppeAufzeichnung = function() {
+    if (window._aufzeichnungWatchId !== null) {
+        navigator.geolocation.clearWatch(window._aufzeichnungWatchId);
+        window._aufzeichnungWatchId = null;
+    }
+    clearInterval(window._aufzeichnungTimer);
+    window._aufzeichnungTimer  = null;
+    window._aufzeichnungAktiv  = false;
+    _aufzeichnungBtnAktualisieren();
+
+    if (window._aufzeichnungPunkte.length < 2) {
+        window.verwerfAufzeichnung();
+        return;
+    }
+
+    // Stats berechnen (identisch zu _verarbeiteRoute)
+    const coords = window._aufzeichnungPunkte.map(p => L.latLng(p.lat, p.lng, p.alt));
+    let aufstieg = 0, abstieg = 0;
+    for (let i = 1; i < coords.length; i++) {
+        const diff = (coords[i].alt || 0) - (coords[i-1].alt || 0);
+        if (diff > 0) aufstieg += diff; else abstieg += Math.abs(diff);
+    }
+
+    const schutzGebieteGeoJSON = holeAlleSchutzgebieteGeoJSON();
+    let schutzPunkte = 0;
+    if (schutzGebieteGeoJSON.features.length > 0) {
+        coords.forEach(p => {
+            const pt = turf.point([p.lng, p.lat]);
+            if (schutzGebieteGeoJSON.features.some(f => {
+                const typ = f.geometry && f.geometry.type;
+                return (typ === 'Polygon' || typ === 'MultiPolygon') && turf.booleanPointInPolygon(pt, f);
+            })) schutzPunkte++;
+        });
+    }
+
+    window.aktuelleTourDaten = {
+        distanz:    (window._aufzeichnungDistanz / 1000).toFixed(2),
+        dauer:      Math.round((Date.now() - window._aufzeichnungStart) / 60000),
+        aufstieg:   Math.round(aufstieg),
+        abstieg:    Math.round(abstieg),
+        nsg_anteil: coords.length > 0 ? Math.round((schutzPunkte / coords.length) * 100) : 0,
+        koordinaten: coords
+    };
+
+    // Aufzeichnungs-Polyline als aktive Route übernehmen
+    if (window._routeLinie) map.removeLayer(window._routeLinie);
+    window._routeLinie        = window._aufzeichnungLinie;
+    window._aufzeichnungLinie = null;
+    window._aufzeichnungPunkte = [];
+    map.fitBounds(window._routeLinie.getBounds(), { padding: [40, 40] });
+
+    // In bestehenden "route_fertig"-Zustand übergehen → Speichern-Button erscheint
+    window.routingStatus = 'route_fertig';
+    window.aktualisiereRoutenBar();
+};
+
+window.verwerfAufzeichnung = function() {
+    if (window._aufzeichnungWatchId !== null) {
+        navigator.geolocation.clearWatch(window._aufzeichnungWatchId);
+        window._aufzeichnungWatchId = null;
+    }
+    clearInterval(window._aufzeichnungTimer);
+    window._aufzeichnungTimer   = null;
+    window._aufzeichnungAktiv   = false;
+    window._aufzeichnungPunkte  = [];
+    window._aufzeichnungDistanz = 0;
+    if (window._aufzeichnungLinie) { map.removeLayer(window._aufzeichnungLinie); window._aufzeichnungLinie = null; }
+    _aufzeichnungBtnAktualisieren();
     window.routingStatus = 'leer';
     window.aktualisiereRoutenBar();
 };
