@@ -238,16 +238,23 @@ body { font-family: sans-serif; background: #f5f5f5; }
     flex-shrink: 0;
 }
 #filter-panel-kopf button {
-    background: none;
+    background: rgba(255,255,255,0.15);
     border: none;
     color: white;
-    font-size: 1.3em;
+    font-size: 1.2em;
     cursor: pointer;
-    line-height: 1;
-    opacity: 0.75;
+    opacity: 0.85;
     padding: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
-#filter-panel-kopf button:hover { opacity: 1; }
+#filter-panel-kopf button:hover  { opacity: 1; background: rgba(255,255,255,0.25); }
+#filter-panel-kopf button:active { background: rgba(255,255,255,0.35); }
 
 #filter-panel-inhalt {
     overflow-y: auto;
@@ -420,9 +427,31 @@ button, a {
     .rb-stat-label { font-size: 0.68em; }
 
     /* Buttons touch-freundlicher (min. 44px Höhe) */
-    .routen-btn { padding: 12px 14px; font-size: 0.9em; }
-    .filter-aktionen button { padding: 12px; }
-    .routen-eintrag-actions button { padding: 9px 4px; }
+    .routen-btn { padding: 13px 14px; font-size: 0.9em; }
+    .filter-aktionen button { padding: 13px; font-size: 0.92em; }
+    .routen-eintrag-actions button { padding: 11px 6px; font-size: 0.82em; }
+
+    /* ✕-Button im Panel auf Handy noch größer */
+    #filter-panel-kopf button { width: 44px; height: 44px; font-size: 1.35em; }
+
+    /* Leaflet Popup-Schließen-Button */
+    .leaflet-popup-close-button {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 20px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        top: 4px !important;
+        right: 4px !important;
+    }
+
+    /* Leaflet Layer-Control: Zeilen größer */
+    .leaflet-control-layers label {
+        padding: 5px 2px;
+        display: block;
+        font-size: 0.95em;
+    }
 
     /* Leaflet-Popups: nicht über den Rand gehen */
     .leaflet-popup-content-wrapper {
@@ -438,7 +467,10 @@ button, a {
 }
 
 /* LRM-Panel komplett ausblenden (Route wird selbst gezeichnet) */
-.leaflet-routing-container { display: none !important; }
+.leaflet-routing-container,
+.leaflet-routing-container-hide,
+.leaflet-routing-alt,
+.leaflet-routing-geocoders { display: none !important; }
 
 /* === Live-Standort-Punkt === */
 .standort-dot {
