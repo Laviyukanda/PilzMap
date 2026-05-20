@@ -63,6 +63,28 @@
                 <div id="filter-ergebnis"></div>
             </div>
 
+            <!-- Baumarten-Filter -->
+            <div class="filter-sektion" id="baum-filter-sektion" style="display:none;">
+                <h3>🌳 Baumarten ein-/ausblenden</h3>
+                <div id="baum-zoom-hinweis" style="font-size:0.83em;color:#e67e22;padding:4px 0;">
+                    ⚠️ Bitte weiter reinzoomen (Zoomstufe ≥ 13), um Bäume zu laden.
+                </div>
+                <div id="baum-ladehinweis" style="display:none;font-size:0.83em;color:#2577b4;padding:4px 0;">
+                    ⏳ Bäume werden geladen…
+                </div>
+                <div id="baum-arten-liste" style="max-height:220px;overflow-y:auto;margin:6px 0;"></div>
+                <div style="display:flex;gap:6px;margin-top:4px;">
+                    <button onclick="window.alleBaumArtenAn()"
+                        style="flex:1;padding:5px;border:1px solid #ccc;border-radius:5px;cursor:pointer;font-size:0.82em;background:#f8f8f8;">
+                        ✓ Alle an
+                    </button>
+                    <button onclick="window.alleBaumArtenAus()"
+                        style="flex:1;padding:5px;border:1px solid #ccc;border-radius:5px;cursor:pointer;font-size:0.82em;background:#f8f8f8;">
+                        ✗ Alle aus
+                    </button>
+                </div>
+            </div>
+
             <!-- Gespeicherte Routen -->
             <div class="filter-sektion">
                 <h3>🗺️ Gespeicherte Routen</h3>
