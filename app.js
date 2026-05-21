@@ -5,11 +5,33 @@ proj4.defs("EPSG:31467", "+proj=tmerc +lat_0=0 +lon_0=9 +k=1 +x_0=3500000 +y_0=0
 // === 1. Karte initialisieren (Startansicht: ganz Baden-Württemberg) ===
 const map = L.map('map').setView([48.65, 9.0], 8);
 
-// === 2. Basiskarte (OpenStreetMap) hinzufügen ===
+// === 2. Basiskarten ===
 const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    attribution: '&copy; OpenStreetMap'
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(map);
+
+const topoMap = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution: '&copy; <a href="https://opentopomap.org">OpenTopoMap</a> &copy; OpenStreetMap'
+});
+
+const cyclOsm = L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', {
+    maxZoom: 20,
+    attribution: '&copy; <a href="https://www.cyclosm.org">CyclOSM</a> &copy; OpenStreetMap'
+});
+
+const esriSatellit = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: '&copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
+});
+
+const esriTopo = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: '&copy; Esri &mdash; Esri, HERE, Garmin, FAO, NOAA, USGS'
+});
 
 // === 2.1. Leere Sammelmappen & WMS anlegen ===
 const waldLayer = L.layerGroup();
@@ -60,7 +82,13 @@ const regenRadarDWD = L.tileLayer.wms('https://maps.dwd.de/geoserver/dwd/wms', {
 });
 
 // === 2.2. Schaltzentrale (Menü) ===
-const basisKarten = { "Straßenkarte (OSM)": osm };
+const basisKarten = {
+    "🗺️ Straßenkarte (OSM)":     osm,
+    "🏔️ Topographie (OpenTopo)": topoMap,
+    "🚵 Outdoor / Wege (CyclOSM)": cyclOsm,
+    "🛰️ Satellit (Esri)":        esriSatellit,
+    "📐 Topo-Atlas (Esri)":      esriTopo
+};
 const overlayKarten = {
     "🌲 Waldrefugien (ForstBW)": waldLayer,
     "🌿 Naturschutzgebiete": naturschutzLayer,
