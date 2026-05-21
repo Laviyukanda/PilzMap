@@ -17,8 +17,16 @@ const fundstellenLayer = L.layerGroup().addTo(map);
 const stationenLayer = L.layerGroup();
 const naturschutzLayer = L.layerGroup().addTo(map); 
 const nationalparkLayer = L.layerGroup().addTo(map);
-const bwiLayer    = L.layerGroup();
+const bwiLayer     = L.layerGroup();
 const phBodenLayer = L.layerGroup();
+const bodenPhWms   = L.tileLayer.wms('https://maps.isric.org/mapserv?map=/map/phh2o.map', {
+    layers:      'phh2o_0-5cm_mean',
+    format:      'image/png',
+    transparent: true,
+    opacity:     0.75,
+    version:     '1.3.0',
+    attribution: '© ISRIC SoilGrids 2.0 (CC BY 4.0) – pH H₂O, 0–5 cm'
+});
 
 // === 2.1.1 Schutzgebiete "Etikettieren" für Turf.js ===
 waldLayer.isSchutzgebiet = true;
@@ -43,7 +51,8 @@ const overlayKarten = {
     "🌧️ Regenradar Live (DWD)": regenRadarDWD,
     "📊 7-Tage-Regen (Messpunkte)": stationenLayer,
     "🌳 Bäume (OSM)": bwiLayer,
-    "🌿 Bodenvegetation (BWI 2002)": phBodenLayer
+    "🌿 Bodenvegetation (BWI 2002)": phBodenLayer,
+    "🧪 pH-Bodenwerte (ISRIC)": bodenPhWms
 };
 L.control.layers(basisKarten, overlayKarten).addTo(map);
 
@@ -239,6 +248,31 @@ phLegende.onAdd = function() {
         '<i style="background:#fdae61;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:middle;"></i>häufig (pH ~4–4,5)<br>' +
         '<i style="background:#d7191c;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:middle;"></i>dominant (pH ~3,5–4)<br>' +
         '<span style="font-size:0.75em;color:#999;">Quelle: BWI 2002, Thünen Institut</span>';
+    return div;
+};
+
+// === 3.3.1 pH-Bodenwerte Legende (ISRIC SoilGrids) ===
+const _phIsricFarben = [
+    { farbe: '#800026', label: '&lt; 4,5' },
+    { farbe: '#bd0026', label: '4,5 – 5' },
+    { farbe: '#f03b20', label: '5 – 5,5' },
+    { farbe: '#fd8d3c', label: '5,5 – 6' },
+    { farbe: '#9ecae1', label: '6 – 6,5' },
+    { farbe: '#4292c6', label: '6,5 – 7' },
+    { farbe: '#2171b5', label: '7 – 7,5' },
+    { farbe: '#084594', label: '&gt; 7,5' }
+];
+const bodenPhLegende = L.control({ position: 'bottomright' });
+bodenPhLegende.onAdd = function() {
+    const div = L.DomUtil.create('div', 'info legend');
+    div.style.cssText = 'background:white;padding:10px;border-radius:5px;box-shadow:0 0 15px rgba(0,0,0,0.2);font-family:sans-serif;font-size:13px;line-height:1.8;min-width:160px;';
+    div.innerHTML = '<b>🧪 pH-Bodenwerte</b><br>' +
+        '<span style="font-size:0.78em;color:#666;">ISRIC SoilGrids · 0–5 cm</span><br>' +
+        '<hr style="margin:4px 0;border:none;border-top:1px solid #ddd;">' +
+        _phIsricFarben.map(function(e) {
+            return '<i style="background:' + e.farbe + ';width:14px;height:14px;display:inline-block;border-radius:2px;margin-right:6px;vertical-align:middle;"></i>' + e.label;
+        }).join('<br>') +
+        '<br><span style="font-size:0.72em;color:#999;">© ISRIC (CC BY 4.0)</span>';
     return div;
 };
 
@@ -916,6 +950,9 @@ map.on('overlayadd', function(e) {
     if (e.layer === phBodenLayer) {
         phLegende.addTo(map);
     }
+    if (e.layer === bodenPhWms) {
+        bodenPhLegende.addTo(map);
+    }
     if (e.layer === bwiLayer) {
         const sek = document.getElementById('baum-filter-sektion');
         if (sek) sek.style.display = '';
@@ -938,6 +975,9 @@ map.on('overlayremove', function(e) {
     }
     if (e.layer === phBodenLayer) {
         phLegende.remove();
+    }
+    if (e.layer === bodenPhWms) {
+        bodenPhLegende.remove();
     }
     if (e.layer === bwiLayer) {
         const sek = document.getElementById('baum-filter-sektion');
