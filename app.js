@@ -140,50 +140,68 @@ fetch('https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/master/2_b
     })
     .catch(function(err) { console.warn('BW-Grenze nicht geladen:', err); });
 
-// === 3. Waldrefugien (ForstBW) laden ===
-const _waldrefugienFarben = {
-    'WR':   { color: '#1a6b1a', label: 'Waldrefugium' },
-    'aWR':  { color: '#6ab04a', label: 'Angehender Waldrefugien' },
-    'Still':{ color: '#e07a00', label: 'Stilllegung' }
-};
+// === 3. Waldrefugien (ForstBW) laden – nach Baumart eingefärbt ===
+const _waldKatLabels = { 'WR': 'Waldrefugium', 'aWR': 'Angehender Waldrefugien', 'Still': 'Stilllegung' };
+
+function _waldBaumart(lwetText) {
+    if (!lwetText) return 'Andere';
+    const t = lwetText.toLowerCase();
+    if (t.includes('buche'))                               return 'Buche';
+    if (t.includes('fichte'))                              return 'Fichte';
+    if (t.includes('kiefer') || t.includes('föhre'))       return 'Kiefer';
+    if (t.includes('tanne'))                               return 'Tanne';
+    if (t.includes('lärche') || t.includes('laerche'))     return 'Lärche';
+    if (t.includes('douglasie'))                           return 'Douglasie';
+    if (t.includes('eiche'))                               return 'Eiche';
+    if (t.includes('esche'))                               return 'Esche';
+    if (t.includes('ahorn'))                               return 'Ahorn';
+    if (t.includes('birke'))                               return 'Birke';
+    if (t.includes('erle'))                                return 'Erle';
+    if (t.includes('mischwald'))                           return 'Mischwald';
+    return 'Andere';
+}
+
 fetch('ForstBW_Waldrefugien_-38784724193262813.geojson')
     .then(function(antwort) { return antwort.json(); })
     .then(function(waldDaten) {
+        const vorhandeneArten = new Set();
+
         L.geoJSON(waldDaten, {
             style: function(feature) {
-                const kat = feature.properties && feature.properties.NWW_KAT;
-                const farbe = (_waldrefugienFarben[kat] || { color: '#2ca25f' }).color;
-                return { color: farbe, fillColor: farbe, weight: 1.5, fillOpacity: 0.4 };
+                const art   = _waldBaumart(feature.properties && feature.properties.LWET_TEXT);
+                const farbe = getBaumartFarbe(art);
+                return { color: farbe, fillColor: farbe, weight: 1.2, fillOpacity: 0.45 };
             },
             onEachFeature: function(feature, layer) {
-                const p = feature.properties || {};
-                const kat = p.NWW_KAT || '';
-                const katLabel = (_waldrefugienFarben[kat] || {}).label || kat;
-                const beschreibung = p.LWET_TEXT || '';
+                const p        = feature.properties || {};
+                const art      = _waldBaumart(p.LWET_TEXT);
+                const katLabel = _waldKatLabels[p.NWW_KAT] || p.NWW_KAT || '';
+                vorhandeneArten.add(art);
                 layer.bindPopup(
-                    `🌲 <b>${katLabel}</b>` +
-                    (beschreibung ? `<br><span style="font-size:0.9em">${beschreibung}</span>` : '')
+                    '🌲 <b>' + art + '</b>' +
+                    (p.LWET_TEXT ? '<br><span style="font-size:0.88em">' + p.LWET_TEXT + '</span>' : '') +
+                    (katLabel    ? '<br><span style="font-size:0.8em;color:#888;">' + katLabel + '</span>' : '')
                 );
             }
         }).addTo(waldLayer);
 
-        // Legende für Waldrefugien
+        // Legende dynamisch aus den tatsächlich vorhandenen Arten aufbauen
         const waldLegende = L.control({ position: 'bottomright' });
         waldLegende.onAdd = function() {
             const div = L.DomUtil.create('div', 'info legend');
-            div.style.cssText = 'background:white;padding:6px 10px;border-radius:6px;font-size:0.82em;line-height:1.7;box-shadow:0 1px 5px rgba(0,0,0,0.3)';
+            div.style.cssText = 'background:white;padding:6px 10px;border-radius:6px;font-size:0.82em;' +
+                'line-height:1.8;box-shadow:0 1px 5px rgba(0,0,0,0.3);max-height:260px;overflow-y:auto;';
             div.innerHTML = '<b>🌲 Waldrefugien</b><br>' +
-                Object.entries(_waldrefugienFarben).map(([k, v]) =>
-                    `<span style="display:inline-block;width:12px;height:12px;background:${v.color};border-radius:2px;margin-right:5px;vertical-align:middle"></span>${v.label}`
-                ).join('<br>');
+                '<span style="font-size:0.78em;color:#666;">ForstBW · Baumart</span><br>' +
+                Array.from(vorhandeneArten).sort().map(function(art) {
+                    const farbe = getBaumartFarbe(art);
+                    return '<span style="display:inline-block;width:12px;height:12px;background:' + farbe +
+                           ';border-radius:2px;margin-right:5px;vertical-align:middle;"></span>' + art;
+                }).join('<br>');
             return div;
         };
-        map.on('overlayadd', function(e) {
-            if (e.layer === waldLayer) waldLegende.addTo(map);
-        });
-        map.on('overlayremove', function(e) {
-            if (e.layer === waldLayer) waldLegende.remove();
-        });
+        map.on('overlayadd',    function(e) { if (e.layer === waldLayer) waldLegende.addTo(map); });
+        map.on('overlayremove', function(e) { if (e.layer === waldLayer) waldLegende.remove(); });
         if (map.hasLayer(waldLayer)) waldLegende.addTo(map);
     })
     .catch(function(fehler) { console.error('Waldrefugien konnten nicht geladen werden:', fehler); });
