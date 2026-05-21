@@ -12,19 +12,37 @@ const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 // === 2.1. Leere Sammelmappen & WMS anlegen ===
-const waldLayer = L.layerGroup().addTo(map);
+const waldLayer = L.layerGroup();
 const fundstellenLayer = L.layerGroup().addTo(map); 
 const stationenLayer = L.layerGroup();
 const naturschutzLayer = L.layerGroup().addTo(map); 
 const nationalparkLayer = L.layerGroup().addTo(map);
 const bwiLayer     = L.layerGroup();
 const phBodenLayer = L.layerGroup();
-const bodenPhWms   = L.tileLayer.wms('https://maps.isric.org/mapserv?map=/map/phh2o.map', {
+// SLD erzwingt exakte Farben auf dem Server (pH×10-Werte → Klassen)
+const _phSld = '<?xml version="1.0" encoding="UTF-8"?>' +
+    '<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld">' +
+    '<NamedLayer><Name>phh2o_0-5cm_mean</Name><UserStyle><FeatureTypeStyle><Rule>' +
+    '<RasterSymbolizer><ColorMap type="intervals">' +
+    '<ColorMapEntry color="#000000" quantity="0"  opacity="0"/>' +
+    '<ColorMapEntry color="#800026" quantity="1"  opacity="0.85" label="lt 4.5"/>' +
+    '<ColorMapEntry color="#bd0026" quantity="45" opacity="0.85" label="4.5-5"/>' +
+    '<ColorMapEntry color="#e04040" quantity="50" opacity="0.85" label="5-5.5"/>' +
+    '<ColorMapEntry color="#fcccc8" quantity="55" opacity="0.85" label="5.5-6"/>' +
+    '<ColorMapEntry color="#c8e8f8" quantity="60" opacity="0.85" label="6-6.5"/>' +
+    '<ColorMapEntry color="#4898d0" quantity="65" opacity="0.85" label="6.5-7"/>' +
+    '<ColorMapEntry color="#1c60c0" quantity="70" opacity="0.85" label="7-7.5"/>' +
+    '<ColorMapEntry color="#083888" quantity="75" opacity="0.85" label="gt 7.5"/>' +
+    '</ColorMap></RasterSymbolizer>' +
+    '</Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>';
+
+const bodenPhWms = L.tileLayer.wms('https://maps.isric.org/mapserv?map=/map/phh2o.map', {
     layers:      'phh2o_0-5cm_mean',
     format:      'image/png',
     transparent: true,
     opacity:     0.75,
     version:     '1.3.0',
+    SLD_BODY:    _phSld,
     attribution: '© ISRIC SoilGrids 2.0 (CC BY 4.0) – pH H₂O, 0–5 cm'
 });
 
@@ -255,12 +273,12 @@ phLegende.onAdd = function() {
 const _phIsricFarben = [
     { farbe: '#800026', label: '&lt; 4,5' },
     { farbe: '#bd0026', label: '4,5 – 5' },
-    { farbe: '#f03b20', label: '5 – 5,5' },
-    { farbe: '#fd8d3c', label: '5,5 – 6' },
-    { farbe: '#9ecae1', label: '6 – 6,5' },
-    { farbe: '#4292c6', label: '6,5 – 7' },
-    { farbe: '#2171b5', label: '7 – 7,5' },
-    { farbe: '#084594', label: '&gt; 7,5' }
+    { farbe: '#e04040', label: '5 – 5,5' },
+    { farbe: '#fcccc8', label: '5,5 – 6' },
+    { farbe: '#c8e8f8', label: '6 – 6,5' },
+    { farbe: '#4898d0', label: '6,5 – 7' },
+    { farbe: '#1c60c0', label: '7 – 7,5' },
+    { farbe: '#083888', label: '&gt; 7,5' }
 ];
 const bodenPhLegende = L.control({ position: 'bottomright' });
 bodenPhLegende.onAdd = function() {
