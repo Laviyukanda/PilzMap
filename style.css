@@ -55,7 +55,8 @@ body { font-family: sans-serif; background: #f5f5f5; }
 #routen-bar.status-berechnung   { border-left-color: #3498db; }
 #routen-bar.status-fertig       { border-left-color: #2ca25f; }
 #routen-bar.status-gespeichert  { border-left-color: #8e44ad; }
-#routen-bar.status-aufzeichnung { border-left-color: #e74c3c; }
+#routen-bar.status-aufzeichnung        { border-left-color: #e74c3c; }
+#routen-bar.status-aufzeichnung-fertig { border-left-color: #f39c12; }
 
 #routen-bar-inhalt {
     display: flex;
@@ -124,6 +125,22 @@ body { font-family: sans-serif; background: #f5f5f5; }
 .routen-btn-gruen  { background: #2ca25f; color: white; }
 .routen-btn-rot    { background: #e74c3c; color: white; }
 .routen-btn-grau   { background: #95a5a6; color: white; }
+.routen-btn-blau   { background: #2980b9; color: white; }
+
+.rb-name-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9em;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+.rb-name-input:focus {
+    outline: none;
+    border-color: #f39c12;
+    box-shadow: 0 0 0 2px rgba(243,156,18,0.18);
+}
 
 .rb-actions { display: flex; gap: 7px; }
 .rb-actions .routen-btn { flex: 1; }
@@ -415,7 +432,8 @@ button, a {
     #routen-bar.status-berechnung   { border-top-color: #3498db; }
     #routen-bar.status-fertig       { border-top-color: #2ca25f; }
     #routen-bar.status-gespeichert  { border-top-color: #8e44ad; }
-    #routen-bar.status-aufzeichnung { border-top-color: #e74c3c; }
+    #routen-bar.status-aufzeichnung        { border-top-color: #e74c3c; }
+    #routen-bar.status-aufzeichnung-fertig { border-top-color: #f39c12; }
 
     /* Stats-Grid: 4 Felder in einer Zeile (Bottom Sheet ist breit genug) */
     .rb-stats-grid {

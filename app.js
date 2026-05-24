@@ -696,17 +696,20 @@ window.pilzMarkerSpeicher = {};
 map.on('contextmenu', function(e) {
     const lat = e.latlng.lat;
     const lng = e.latlng.lng;
+    const heute = new Date().toISOString().slice(0, 10);
 
     const formHtml = `
         <div style="text-align: center; font-family: sans-serif; min-width: 220px;">
             <h4 style="margin: 0 0 10px 0;">🍄 Neuer Fund</h4>
-            <input type="text" id="neu-notiz" placeholder="Welcher Pilz? / Notizen" style="width: 100%; margin-bottom: 10px; padding: 5px;"><br>
-            <select id="neu-geniessbarkeit" style="width: 100%; margin-bottom: 10px; padding: 5px;">
+            <input type="text" id="neu-notiz" placeholder="Welcher Pilz? / Notizen" style="width: 100%; margin-bottom: 8px; padding: 5px;"><br>
+            <select id="neu-geniessbarkeit" style="width: 100%; margin-bottom: 8px; padding: 5px;">
                 <option value="Unbekannt">❓ Unbekannt</option>
                 <option value="Essbar">🍽️ Essbar</option>
                 <option value="Ungenießbar">🤢 Ungenießbar</option>
                 <option value="Giftig">☠️ Giftig</option>
             </select><br>
+            <label style="font-size: 0.8em; display:block; text-align:left; margin-bottom:3px;">📅 Funddatum:</label>
+            <input type="date" id="neu-datum" value="${heute}" style="width: 100%; margin-bottom: 8px; padding: 5px;"><br>
             <label style="font-size: 0.8em; display:block; text-align:left;">Bis zu 3 Fotos:</label>
             <input type="file" id="neu-foto" accept="image/*" multiple style="width: 100%; margin-bottom: 10px;"><br>
             <button onclick="speichereNeuenFund(${lat}, ${lng})" style="width: 100%; padding: 8px; background: #2ca25f; color: white; border: none; border-radius: 5px; cursor: pointer;">
@@ -721,22 +724,24 @@ map.on('contextmenu', function(e) {
 window.speichereNeuenFund = async function(lat, lng) {
     const notizFeld = document.getElementById('neu-notiz').value;
     const genFeld = document.getElementById('neu-geniessbarkeit').value;
+    const datumFeld = document.getElementById('neu-datum').value;
     const dateien = document.getElementById('neu-foto').files;
     const statusText = document.getElementById('upload-status');
 
     if (dateien.length > 3) { statusText.innerHTML = "❌ Maximal 3 Fotos erlaubt!"; return; }
     statusText.innerHTML = "⏳ Lade hoch... (das kann dauern)";
-    let urls = [null, null, null]; 
+    let urls = [null, null, null];
 
     for (let i = 0; i < Math.min(dateien.length, 3); i++) {
         const dateiName = `${Date.now()}_${dateien[i].name.replace(/[^a-zA-Z0-9.]/g, "")}`;
         const { data, error } = await _supabase.storage.from('pilzfotos').upload(dateiName, dateien[i]);
-        if (error) { statusText.innerHTML = `❌ Fehler bei Bild ${i+1}`; return; } 
+        if (error) { statusText.innerHTML = `❌ Fehler bei Bild ${i+1}`; return; }
         else { urls[i] = _supabase.storage.from('pilzfotos').getPublicUrl(dateiName).data.publicUrl; }
     }
 
-    const { data, error } = await _supabase.from('pilze').insert([{ 
+    const { data, error } = await _supabase.from('pilze').insert([{
         lat: lat, lng: lng, notiz: notizFeld, geniessbarkeit: genFeld,
+        fund_datum: datumFeld || null,
         foto_url: urls[0], foto_url_2: urls[1], foto_url_3: urls[2]
     }]).select(); 
 
@@ -752,11 +757,15 @@ window.speichereNeuenFund = async function(lat, lng) {
 
 window.generiereAnsicht = function(id) {
     const p = window.pilzDatenSpeicher[id];
+    const datumAnzeige = p.fund_datum
+        ? new Date(p.fund_datum + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : (p.created_at ? new Date(p.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
     let html = `<div style="font-family: sans-serif; min-width: 240px; padding-bottom: 5px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
             <h4 style="margin: 0; font-size: 1.1em;">🍄 ${p.geniessbarkeit || "Unbekannt"}</h4>
             <button onclick="oeffneBearbeitung(${id})" style="background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 0; opacity: 0.6;">✏️</button>
         </div>
+        ${datumAnzeige ? `<div style="font-size:0.8em; color:#888; margin-bottom:6px;">📅 ${datumAnzeige}</div>` : ''}
         <p style="margin: 0 0 12px 0; color: #444;">${p.notiz || "<i>Keine Notiz</i>"}</p>
         <div style="display: flex; flex-direction: column; gap: 6px;">`;
     
@@ -829,12 +838,14 @@ window.oeffneBearbeitung = function(id) {
     let html = `<div style="font-family: sans-serif; min-width: 220px;">
         <h4 style="margin: 0 0 5px 0;">✏️ Pilz bearbeiten</h4>
         <input type="text" id="edit-notiz-${id}" value="${p.notiz || ''}" style="width: 100%; margin-bottom: 5px; padding: 5px;">
-        <select id="edit-gen-${id}" style="width: 100%; margin-bottom: 10px; padding: 5px;">
+        <select id="edit-gen-${id}" style="width: 100%; margin-bottom: 8px; padding: 5px;">
             <option value="Unbekannt" ${p.geniessbarkeit === 'Unbekannt' ? 'selected' : ''}>❓ Unbekannt</option>
             <option value="Essbar" ${p.geniessbarkeit === 'Essbar' ? 'selected' : ''}>🍽️ Essbar</option>
             <option value="Ungenießbar" ${p.geniessbarkeit === 'Ungenießbar' ? 'selected' : ''}>🤢 Ungenießbar</option>
             <option value="Giftig" ${p.geniessbarkeit === 'Giftig' ? 'selected' : ''}>☠️ Giftig</option>
         </select>
+        <label style="font-size: 0.8em; display:block; text-align:left; margin-bottom:3px;">📅 Funddatum:</label>
+        <input type="date" id="edit-datum-${id}" value="${p.fund_datum || ''}" style="width: 100%; margin-bottom: 10px; padding: 5px;">
         <div style="font-size: 0.8em; margin-bottom: 10px;">
             ${p.foto_url ? `<div><span>📷 Foto 1:</span> <button onclick="loescheEigenschaft(${id}, 'foto_url')" style="color:red; background:none; border:none; cursor:pointer;">🗑️ Löschen</button></div>` : ''}
             ${p.foto_url_2 ? `<div><span>📷 Foto 2:</span> <button onclick="loescheEigenschaft(${id}, 'foto_url_2')" style="color:red; background:none; border:none; cursor:pointer;">🗑️ Löschen</button></div>` : ''}
@@ -851,6 +862,7 @@ window.oeffneBearbeitung = function(id) {
 window.speichereAenderungen = async function(id) {
     const neueNotiz = document.getElementById(`edit-notiz-${id}`).value;
     const neuesGen = document.getElementById(`edit-gen-${id}`).value;
+    const neuesDatum = document.getElementById(`edit-datum-${id}`).value;
     const fotoFeld = document.getElementById(`edit-foto-${id}`);
     const dateien = fotoFeld ? fotoFeld.files : [];
     const p = window.pilzDatenSpeicher[id];
@@ -862,7 +874,7 @@ window.speichereAenderungen = async function(id) {
 
     if (dateien.length > freieSlots.length) { return; }
 
-    const updateDaten = { notiz: neueNotiz, geniessbarkeit: neuesGen };
+    const updateDaten = { notiz: neueNotiz, geniessbarkeit: neuesGen, fund_datum: neuesDatum || null };
     for (let i = 0; i < dateien.length; i++) {
         const dateiName = `${Date.now()}_${dateien[i].name.replace(/[^a-zA-Z0-9.]/g, "")}`;
         const { error } = await _supabase.storage.from('pilzfotos').upload(dateiName, dateien[i]);
@@ -876,6 +888,7 @@ window.speichereAenderungen = async function(id) {
     if (!error) {
         window.pilzDatenSpeicher[id].notiz = neueNotiz;
         window.pilzDatenSpeicher[id].geniessbarkeit = neuesGen;
+        window.pilzDatenSpeicher[id].fund_datum = neuesDatum || null;
         Object.keys(updateDaten).forEach(key => { window.pilzDatenSpeicher[id][key] = updateDaten[key]; });
         setTimeout(() => { window.pilzMarkerSpeicher[id].setPopupContent(window.generiereAnsicht(id)); }, 800);
     }
@@ -1066,7 +1079,7 @@ window.aktualisiereRoutenBar = function() {
     const inhalt = document.getElementById('routen-bar-inhalt');
     if (!bar || !inhalt) return;
 
-    bar.classList.remove('status-start', 'status-berechnung', 'status-fertig', 'status-gespeichert', 'status-aufzeichnung');
+    bar.classList.remove('status-start', 'status-berechnung', 'status-fertig', 'status-gespeichert', 'status-aufzeichnung', 'status-aufzeichnung-fertig');
 
     if (window.routingStatus === 'leer') {
         bar.classList.remove('aktiv');
@@ -1115,6 +1128,42 @@ window.aktualisiereRoutenBar = function() {
             <div class="rb-status">⏳ Route wird berechnet…</div>
             <div class="routen-ladebalken"></div>
             <button class="routen-btn routen-btn-grau rb-btn-full" onclick="window.abbrechenBerechnung()">✕ Abbrechen</button>`;
+        return;
+    }
+
+    if (window.routingStatus === 'aufzeichnung_fertig') {
+        bar.classList.add('aktiv', 'status-aufzeichnung-fertig');
+        const d = window.aktuelleTourDaten;
+        const stunden = Math.floor(d.dauer / 60);
+        const minuten = d.dauer % 60;
+        const dauerText = stunden > 0 ? `${stunden}h ${minuten}m` : `${minuten} Min.`;
+        inhalt.innerHTML = `
+            <div class="rb-status">🏁 Aufzeichnung beendet</div>
+            <div class="rb-stats-grid">
+                <div class="rb-stat">
+                    <div class="rb-stat-val">📏 ${d.distanz} km</div>
+                    <div class="rb-stat-label">Strecke</div>
+                </div>
+                <div class="rb-stat">
+                    <div class="rb-stat-val">⏱️ ${dauerText}</div>
+                    <div class="rb-stat-label">Gehzeit</div>
+                </div>
+                <div class="rb-stat">
+                    <div class="rb-stat-val">↗ ${d.aufstieg} m</div>
+                    <div class="rb-stat-label">Aufstieg</div>
+                </div>
+                <div class="rb-stat">
+                    <div class="rb-stat-val">↘ ${d.abstieg} m</div>
+                    <div class="rb-stat-label">Abstieg</div>
+                </div>
+            </div>
+            <div class="rb-nsg">🌿 ${d.nsg_anteil}% Naturschutzgebiet</div>
+            <input type="text" id="tour-name-inline" class="rb-name-input" placeholder="Tour benennen…">
+            <div class="rb-actions">
+                <button class="routen-btn routen-btn-gruen" onclick="window.speichereAufzeichnungInline()">💾 Speichern</button>
+                <button class="routen-btn routen-btn-blau"  onclick="window.oeffneTourSpeichern()">✏️ Bearbeiten</button>
+                <button class="routen-btn routen-btn-rot"   onclick="window.routeKomplettLoeschen()">🗑️</button>
+            </div>`;
         return;
     }
 
@@ -1390,11 +1439,15 @@ window.oeffneTourSpeichern = function() {
     const dauerText = stunden > 0 ? `${stunden}h ${minuten}m` : `${minuten} Min.`;
     const mitte = d.koordinaten[Math.floor(d.koordinaten.length / 2)];
 
+    // Name aus Inline-Input übernehmen, falls vorhanden
+    const inlineInput = document.getElementById('tour-name-inline');
+    const vorName = inlineInput ? inlineInput.value : '';
+
     L.popup({ maxWidth: 300 })
         .setLatLng(mitte)
         .setContent(`
             <div style="font-family:'Segoe UI',Tahoma,sans-serif; min-width:250px; text-align:center; padding:4px;">
-                <h3 style="margin:0 0 14px 0; color:#2ca25f;">🏔️ Tour speichern</h3>
+                <h3 style="margin:0 0 14px 0; color:#2ca25f;">✏️ Tour bearbeiten & speichern</h3>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">
                     <div style="background:#f8f9fa; padding:10px; border-radius:8px;">
                         <div style="font-size:0.78em; color:#888;">Strecke</div>
@@ -1413,11 +1466,11 @@ window.oeffneTourSpeichern = function() {
                         <div style="font-weight:bold; color:#27ae60;">${d.nsg_anteil}% NSG</div>
                     </div>
                 </div>
-                <input type="text" id="tour-name" placeholder="Name für diese Tour?"
-                    style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ccc; border-radius:6px; font-size:0.95em;">
+                <input type="text" id="tour-name" value="${vorName}" placeholder="Name für diese Tour?"
+                    style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ccc; border-radius:6px; font-size:0.95em; box-sizing:border-box;">
                 <button onclick="window.speichereFinaleTour()"
                     style="width:100%; padding:10px; background:#2ca25f; color:white; border:none; border-radius:7px; font-weight:bold; font-size:1em; cursor:pointer;">
-                    💾 In Supabase speichern
+                    💾 Speichern
                 </button>
             </div>
         `)
@@ -1453,6 +1506,38 @@ window.speichereFinaleTour = async function() {
     } else {
         console.error(error);
         alert("❌ Speicher-Fehler – Details in der Konsole.");
+    }
+};
+
+window.speichereAufzeichnungInline = async function() {
+    const input = document.getElementById('tour-name-inline');
+    const name = (input ? input.value.trim() : '') || 'Wald-Expedition';
+    const d = window.aktuelleTourDaten;
+    if (!d) return;
+
+    const { data: routeData, error } = await _supabase.from('wanderrouten').insert([{
+        name: name,
+        distanz_km: parseFloat(d.distanz),
+        hoehenmeter_auf: d.aufstieg,
+        hoehenmeter_ab: d.abstieg,
+        anteil_nsg_prozent: d.nsg_anteil,
+        dauer_min: d.dauer,
+        koordinaten: d.koordinaten
+    }]).select('id').single();
+
+    if (!error) {
+        if (routeData && window._aufzeichnungFundeIds.length > 0) {
+            await _supabase.from('pilze')
+                .update({ route_id: routeData.id })
+                .in('id', window._aufzeichnungFundeIds);
+            window._aufzeichnungFundeIds = [];
+            ladePilzeAusCloud();
+        }
+        alert('🎉 Tour erfolgreich gespeichert!');
+        window.routeKomplettLoeschen();
+    } else {
+        console.error(error);
+        alert('❌ Speicher-Fehler – Details in der Konsole.');
     }
 };
 
@@ -1605,7 +1690,8 @@ window.wendeFilterAn = function() {
 
     html += gefunden.map(function(f) {
         const p = f.p;
-        const datum = p.created_at ? p.created_at.slice(0, 10) : '';
+        const datumRoh = p.fund_datum || (p.created_at ? p.created_at.slice(0, 10) : '');
+        const datum = datumRoh ? new Date(datumRoh + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
         const foto  = p.foto_url
             ? `<img src="${p.foto_url}" style="width:46px;height:46px;object-fit:cover;border-radius:6px;margin-right:10px;flex-shrink:0;">`
             : `<div style="width:46px;height:46px;background:#f0ece8;border-radius:6px;margin-right:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3em;">🍄</div>`;
@@ -1783,6 +1869,14 @@ window.toggleAufzeichnung = function() {
 window.starteAufzeichnung = function() {
     if (!navigator.geolocation) { alert('GPS nicht verfügbar auf diesem Gerät.'); return; }
 
+    // Evtl. angezeigte gespeicherte Route von der Karte entfernen
+    if (window._gespeicherteRouteLinie) {
+        map.removeLayer(window._gespeicherteRouteLinie);
+        window._gespeicherteRouteLinie = null;
+    }
+    document.querySelectorAll('.routen-eintrag').forEach(el => el.classList.remove('aktiv'));
+    window.angezeigteTourDaten = null;
+
     window._aufzeichnungAktiv   = true;
     window._aufzeichnungPunkte  = [];
     window._aufzeichnungDistanz = 0;
@@ -1879,8 +1973,7 @@ window.stoppeAufzeichnung = function() {
     window._aufzeichnungPunkte = [];
     map.fitBounds(window._routeLinie.getBounds(), { padding: [40, 40] });
 
-    // In bestehenden "route_fertig"-Zustand übergehen → Speichern-Button erscheint
-    window.routingStatus = 'route_fertig';
+    window.routingStatus = 'aufzeichnung_fertig';
     window.aktualisiereRoutenBar();
 };
 
