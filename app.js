@@ -39,7 +39,7 @@ const fundstellenLayer = L.layerGroup().addTo(map);
 const stationenLayer = L.layerGroup();
 const naturschutzLayer = L.layerGroup().addTo(map); 
 const nationalparkLayer = L.layerGroup().addTo(map);
-const bwiLayer     = L.layerGroup();
+const waldschutzLayer  = L.layerGroup().addTo(map);
 const phBodenLayer = L.layerGroup();
 // SLD erzwingt exakte Farben auf dem Server (pH×10-Werte → Klassen)
 const _phSld = '<?xml version="1.0" encoding="UTF-8"?>' +
@@ -72,6 +72,7 @@ const bodenPhWms = L.tileLayer.wms('https://maps.isric.org/mapserv?map=/map/phh2
 waldLayer.isSchutzgebiet = true;
 naturschutzLayer.isSchutzgebiet = true; // REPARIERT: War vorher doppelt waldLayer
 nationalparkLayer.isSchutzgebiet = true;
+waldschutzLayer.isSchutzgebiet   = true;
 
 const regenRadarDWD = L.tileLayer.wms('https://maps.dwd.de/geoserver/dwd/wms', {
     layers: 'dwd:Niederschlagsradar', 
@@ -93,10 +94,10 @@ const overlayKarten = {
     "🌲 Waldrefugien (ForstBW)": waldLayer,
     "🌿 Naturschutzgebiete": naturschutzLayer,
     "🦅 Nationalparks": nationalparkLayer,
+    "🛡️ Waldschutzgebiete": waldschutzLayer,
     "Fundstellen": fundstellenLayer,
     "🌧️ Regenradar Live (DWD)": regenRadarDWD,
     "📊 7-Tage-Regen (Messpunkte)": stationenLayer,
-    "🌳 Bäume (OSM)": bwiLayer,
     "🌿 Bodenvegetation (BWI 2002)": phBodenLayer,
     "🧪 pH-Bodenwerte (ISRIC)": bodenPhWms
 };
@@ -242,7 +243,43 @@ fetch('nationalpark.json')
     })
     .catch(function(fehler) { console.warn("Nationalparks-Datei fehlt noch:", fehler); });
 
-// === 3.3. Boden-pH / Bodenvegetation (BWI 2002, EPSG:31467) ===
+// === 3.3 Waldschutzgebiete laden (Bannwald = rot, Schonwald = grün) ===
+const waldschutzLegende = L.control({ position: 'bottomright' });
+waldschutzLegende.onAdd = function() {
+    const div = L.DomUtil.create('div', 'info legend');
+    div.style.cssText = 'background:white;padding:8px 12px;border-radius:6px;font-size:0.85em;line-height:1.9;box-shadow:0 1px 5px rgba(0,0,0,0.3);';
+    div.innerHTML =
+        '<b>🛡️ Waldschutzgebiete</b><br>' +
+        '<span style="display:inline-block;width:12px;height:12px;background:#ff0000;border-radius:2px;margin-right:6px;vertical-align:middle;"></span>Bannwald<br>' +
+        '<span style="display:inline-block;width:12px;height:12px;background:#2d9a4e;border-radius:2px;margin-right:6px;vertical-align:middle;"></span>Schonwald';
+    return div;
+};
+
+fetch('waldschutzgebiete.json')
+    .then(function(antwort) { return antwort.json(); })
+    .then(function(wsgDaten) {
+        L.geoJSON(wsgDaten, {
+            style: function(feature) {
+                const typ   = feature.properties.SCHUTZSTAT;
+                const farbe = typ === 'Bannwald' ? '#ff0000' : '#2d9a4e';
+                return { color: farbe, fillColor: farbe, weight: 2, fillOpacity: 0.4 };
+            },
+            onEachFeature: function(feature, layer) {
+                const p    = feature.properties;
+                const typ  = p.SCHUTZSTAT || '–';
+                const ikon = typ === 'Bannwald' ? '🚫' : '🌿';
+                layer.bindPopup(
+                    ikon + ' <b>' + typ + '</b><br>' +
+                    '<span style="font-size:0.9em;">' + (p.OBJEKT || '') + '</span>' +
+                    (p.VO_DATUM ? '<br><span style="font-size:0.8em;color:#888;">Seit ' + p.VO_DATUM + '</span>' : '')
+                );
+            }
+        }).addTo(waldschutzLayer);
+        waldschutzLegende.addTo(map);
+    })
+    .catch(function(fehler) { console.warn('Waldschutzgebiete nicht geladen:', fehler); });
+
+// === 3.4. Boden-pH / Bodenvegetation (BWI 2002, EPSG:31467) ===
 fetch('ph-bodenwerte.json')
     .then(function(r) { return r.json(); })
     .then(function(phDaten) {
@@ -340,28 +377,6 @@ bodenPhLegende.onAdd = function() {
     return div;
 };
 
-// === 3.4. Baumkartierung (OpenStreetMap / Overpass, viewport-basiert, Spezies-Filter) ===
-let _baumGeogruppen       = {};
-let _baumDeaktiviertArten = new Set();
-let _baumDebounceTimer    = null;
-let _baumWmsLayer         = null;
-let _baumWmsAktiv         = false;
-
-function _baumWmsHolen() {
-    if (!_baumWmsLayer) {
-        _baumWmsLayer = L.tileLayer.wms(
-            'https://image.discomap.eea.europa.eu/arcgis/services/GioLandPublic/HRL_ForestType_2018/ImageServer/WMSServer',
-            {
-                layers: '0',
-                format: 'image/png',
-                transparent: true,
-                opacity: 0.65,
-                attribution: '© Copernicus Land Monitoring Service 2018 (EEA)'
-            }
-        );
-    }
-    return _baumWmsLayer;
-}
 
 function getBaumartFarbe(name) {
     if (!name) return '#4a7ab5';
@@ -388,178 +403,6 @@ function getBaumartFarbe(name) {
     return '#4a7ab5';
 }
 
-function _baumArtLabel(tags) {
-    if (!tags) return 'Andere';
-    const raw = (tags['species:de'] || tags['species'] || tags['taxon'] || '').toLowerCase();
-    if (raw.includes('buche')     || raw.includes('fagus'))                       return 'Buche';
-    if (raw.includes('eiche')     || raw.includes('quercus'))                     return 'Eiche';
-    if (raw.includes('fichte')    || raw.includes('picea'))                       return 'Fichte';
-    if (raw.includes('kiefer')    || raw.includes('pinus') || raw.includes('föhre')) return 'Kiefer';
-    if (raw.includes('lärche')    || raw.includes('laerche') || raw.includes('larix')) return 'Lärche';
-    if (raw.includes('tanne')     || raw.includes('abies'))                       return 'Tanne';
-    if (raw.includes('douglasie') || raw.includes('pseudotsuga'))                 return 'Douglasie';
-    if (raw.includes('birke')     || raw.includes('betula'))                      return 'Birke';
-    if (raw.includes('erle')      || raw.includes('alnus'))                       return 'Erle';
-    if (raw.includes('esche')     || raw.includes('fraxinus'))                    return 'Esche';
-    if (raw.includes('ahorn')     || raw.includes('acer'))                        return 'Ahorn';
-    if (raw.includes('linde')     || raw.includes('tilia'))                       return 'Linde';
-    if (raw.includes('pappel')    || raw.includes('populus'))                     return 'Pappel';
-    if (raw.includes('kirsche')   || raw.includes('prunus'))                      return 'Kirsche';
-    if (raw) return raw.charAt(0).toUpperCase() + raw.slice(1, 24);
-    const leaf = tags['leaf_type'] || '';
-    if (leaf === 'broadleaved')  return 'Laubwald';
-    if (leaf === 'needleleaved') return 'Nadelwald';
-    if (leaf === 'mixed')        return 'Mischwald';
-    return 'Andere';
-}
-
-function ladeBaeumeInSicht() {
-    if (!map.hasLayer(bwiLayer)) return;
-
-    clearTimeout(_baumDebounceTimer);
-    _baumDebounceTimer = setTimeout(function() {
-        _ladeBaeumeJetzt();
-    }, 400);
-}
-
-function _ladeBaeumeJetzt() {
-    if (!map.hasLayer(bwiLayer)) return;
-    const zoom     = map.getZoom();
-    const zoomHinw = document.getElementById('baum-zoom-hinweis');
-    const ladeHinw = document.getElementById('baum-ladehinweis');
-
-    if (zoom < 12) {
-        // Overpass-Polygone entfernen, WMS-Übersicht sicherstellen
-        Object.values(_baumGeogruppen).forEach(function(g) { bwiLayer.removeLayer(g); });
-        _baumGeogruppen = {};
-        if (!_baumWmsAktiv) { bwiLayer.addLayer(_baumWmsHolen()); _baumWmsAktiv = true; }
-        if (zoomHinw) zoomHinw.style.display = '';
-        if (ladeHinw) ladeHinw.style.display  = 'none';
-        _aktualisiereBaumartListe({});
-        return;
-    }
-    // Zoom ≥ 12: WMS durch Overpass-Artenpolygone ersetzen
-    if (_baumWmsAktiv) { bwiLayer.removeLayer(_baumWmsHolen()); _baumWmsAktiv = false; }
-    if (zoomHinw) zoomHinw.style.display = 'none';
-    if (ladeHinw) ladeHinw.style.display  = '';
-
-    const b    = map.getBounds();
-    const bbox = b.getSouth().toFixed(5) + ',' + b.getWest().toFixed(5) + ',' +
-                 b.getNorth().toFixed(5) + ',' + b.getEast().toFixed(5);
-    const query =
-        '[out:json][timeout:30];\n' +
-        '(\n' +
-        '  way["natural"="wood"]('    + bbox + ');\n' +
-        '  way["landuse"="forest"]('  + bbox + ');\n' +
-        ');\n' +
-        'out body;\n>;\nout skel qt;';
-
-    fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        body: 'data=' + encodeURIComponent(query)
-    })
-        .then(function(r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.json();
-        })
-        .then(function(data) {
-            if (ladeHinw) ladeHinw.style.display = 'none';
-            Object.values(_baumGeogruppen).forEach(function(g) { bwiLayer.removeLayer(g); });
-            _baumGeogruppen = {};
-
-            // Knotenkoordinaten indexieren
-            const nodeMap = {};
-            (data.elements || []).forEach(function(el) {
-                if (el.type === 'node') nodeMap[el.id] = [el.lat, el.lon];
-            });
-
-            // Wege als Polygone rendern
-            (data.elements || []).forEach(function(el) {
-                if (el.type !== 'way') return;
-                const coords = (el.nodes || []).map(function(id) { return nodeMap[id]; }).filter(Boolean);
-                if (coords.length < 3) return;
-
-                const tags  = el.tags || {};
-                const art   = _baumArtLabel(tags);
-                const farbe = getBaumartFarbe(art);
-
-                if (!_baumGeogruppen[art]) _baumGeogruppen[art] = L.layerGroup();
-
-                const poly = L.polygon(coords, {
-                    color: farbe, fillColor: farbe,
-                    weight: 0.8, fillOpacity: 0.5, opacity: 0.9
-                });
-
-                const name    = tags.name           || '';
-                const spezDe  = tags['species:de']  || '';
-                const spezLat = tags['species']      || '';
-                const leaf    = tags['leaf_type']    || '';
-                poly.bindPopup(
-                    '🌲 <b>' + art + '</b>' +
-                    (name   ? '<br><span style="font-size:0.88em">' + name + '</span>' : '') +
-                    (spezDe ? '<br>Art: ' + spezDe : (spezLat ? '<br>Art: ' + spezLat : '')) +
-                    (leaf   ? '<br>Laubtyp: ' + leaf : '')
-                );
-                _baumGeogruppen[art].addLayer(poly);
-            });
-
-            Object.keys(_baumGeogruppen).forEach(function(art) {
-                if (!_baumDeaktiviertArten.has(art)) _baumGeogruppen[art].addTo(bwiLayer);
-            });
-            _aktualisiereBaumartListe(_baumGeogruppen);
-        })
-        .catch(function(err) {
-            if (ladeHinw) ladeHinw.style.display = 'none';
-            console.warn('Overpass Fehler:', err);
-        });
-}
-
-function _aktualisiereBaumartListe(gruppen) {
-    const liste = document.getElementById('baum-arten-liste');
-    if (!liste) return;
-    const arten = Object.keys(gruppen).sort();
-    if (!arten.length) {
-        liste.innerHTML = '<span style="font-size:0.82em;color:#aaa;">Keine Bäume in diesem Ausschnitt.</span>';
-        return;
-    }
-    liste.innerHTML = arten.map(function(art) {
-        const farbe    = getBaumartFarbe(art);
-        const anzahl   = gruppen[art].getLayers().length;
-        const an       = !_baumDeaktiviertArten.has(art);
-        const safeArt  = art.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        return '<label style="display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer;font-size:0.85em;">' +
-            '<input type="checkbox"' + (an ? ' checked' : '') +
-            ' onchange="window.toggleBaumart(\'' + safeArt + '\',this.checked)">' +
-            '<i style="background:' + farbe + ';width:12px;height:12px;border-radius:2px;display:inline-block;flex-shrink:0;"></i>' +
-            '<span>' + art + ' <span style="color:#aaa;font-size:0.8em;">(' + anzahl + ')</span></span></label>';
-    }).join('');
-}
-
-window.toggleBaumart = function(art, an) {
-    if (an) {
-        _baumDeaktiviertArten.delete(art);
-        if (_baumGeogruppen[art]) _baumGeogruppen[art].addTo(bwiLayer);
-    } else {
-        _baumDeaktiviertArten.add(art);
-        if (_baumGeogruppen[art]) bwiLayer.removeLayer(_baumGeogruppen[art]);
-    }
-};
-
-window.alleBaumArtenAn = function() {
-    _baumDeaktiviertArten.clear();
-    Object.values(_baumGeogruppen).forEach(function(g) { g.addTo(bwiLayer); });
-    _aktualisiereBaumartListe(_baumGeogruppen);
-};
-
-window.alleBaumArtenAus = function() {
-    Object.keys(_baumGeogruppen).forEach(function(art) { _baumDeaktiviertArten.add(art); });
-    Object.values(_baumGeogruppen).forEach(function(g) { bwiLayer.removeLayer(g); });
-    _aktualisiereBaumartListe(_baumGeogruppen);
-};
-
-map.on('moveend zoomend', function() {
-    if (map.hasLayer(bwiLayer)) ladeBaeumeInSicht();
-});
 
 // === 4. Live-Standort abfragen (via watchPosition – kein auto-setView) ===
 let _standortMarker = null;
@@ -1094,18 +937,8 @@ map.on('overlayadd', function(e) {
     if (e.layer === bodenPhWms) {
         bodenPhLegende.addTo(map);
     }
-    if (e.layer === bwiLayer) {
-        const sek = document.getElementById('baum-filter-sektion');
-        if (sek) sek.style.display = '';
-        const panel = document.getElementById('filter-panel');
-        const btn   = document.getElementById('filter-btn');
-        if (panel && !panel.classList.contains('offen')) {
-            panel.classList.add('offen');
-            if (btn) btn.classList.add('aktiv');
-        }
-        bwiLayer.addLayer(_baumWmsHolen());
-        _baumWmsAktiv = true;
-        ladeBaeumeInSicht();
+    if (e.layer === waldschutzLayer) {
+        waldschutzLegende.addTo(map);
     }
 });
 map.on('overlayremove', function(e) {
@@ -1120,12 +953,8 @@ map.on('overlayremove', function(e) {
     if (e.layer === bodenPhWms) {
         bodenPhLegende.remove();
     }
-    if (e.layer === bwiLayer) {
-        const sek = document.getElementById('baum-filter-sektion');
-        if (sek) sek.style.display = 'none';
-        bwiLayer.clearLayers();
-        _baumGeogruppen = {};
-        _baumWmsAktiv = false;
+    if (e.layer === waldschutzLayer) {
+        waldschutzLegende.remove();
     }
 });
 
@@ -1607,12 +1436,18 @@ window.speichereAufzeichnungInline = async function() {
 
 function holeAlleSchutzgebieteGeoJSON() {
     let alleFeatures = [];
-    map.eachLayer(function(layer) {
-        if (layer.isSchutzgebiet === true) {
-            layer.eachLayer(function(subLayer) {
-                if (subLayer.toGeoJSON) { alleFeatures.push(subLayer.toGeoJSON()); }
-            });
-        }
+    // Direkte Referenzen: unabhängig davon ob der Layer gerade sichtbar ist
+    [naturschutzLayer, nationalparkLayer, waldschutzLayer].forEach(function(schutzLayer) {
+        schutzLayer.eachLayer(function(subLayer) {
+            // subLayer ist ein L.GeoJSON (FeatureGroup) → eine Ebene tiefer iterieren
+            if (typeof subLayer.eachLayer === 'function') {
+                subLayer.eachLayer(function(fl) {
+                    if (fl.toGeoJSON) alleFeatures.push(fl.toGeoJSON());
+                });
+            } else if (subLayer.toGeoJSON) {
+                alleFeatures.push(subLayer.toGeoJSON());
+            }
+        });
     });
     return turf.featureCollection(alleFeatures);
 }

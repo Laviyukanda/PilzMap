@@ -2,28 +2,138 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-body { font-family: sans-serif; background: #f5f5f5; }
+body {
+    font-family: sans-serif;
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+}
 
+/* ============================================================
+   Header – zwei Zeilen
+   ============================================================ */
 #header {
-    background: linear-gradient(135deg, #2ca25f, #1a7a45);
+    background: linear-gradient(135deg, #2ca25f 0%, #1a7a45 100%);
     color: white;
-    padding: 12px 20px;
+    padding: 9px 16px 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    flex-shrink: 0;
+    z-index: 100;
+}
+
+/* --- Zeile 1: Logo + Auth --- */
+#header-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    gap: 10px;
+    min-height: 34px;
 }
 
-#header h1 { font-size: 1.3em; }
-
-#wetter-leiste {
-    background: #f0f8ff;
-    padding: 10px 20px;
-    font-size: 0.95em;
-    border-bottom: 1px solid #dde;
+#header-titel {
+    font-size: 1.15em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 
-#map { height: calc(100vh - 90px); width: 100%; }
+/* Auth-Bereich */
+#login-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+#login-container input[type="email"],
+#login-container input[type="password"] {
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.32);
+    border-radius: 8px;
+    padding: 5px 10px;
+    color: white;
+    font-size: 0.8em;
+    width: 128px;
+    outline: none;
+    font-family: inherit;
+    transition: background 0.2s, border-color 0.2s;
+}
+#login-container input::placeholder { color: rgba(255,255,255,0.58); }
+#login-container input:focus {
+    background: rgba(255,255,255,0.22);
+    border-color: rgba(255,255,255,0.65);
+}
+
+#btn-login {
+    background: rgba(255,255,255,0.18);
+    border: 1.5px solid rgba(255,255,255,0.38);
+    color: white;
+    border-radius: 8px;
+    padding: 5px 13px;
+    font-size: 0.82em;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+#btn-login:hover  { background: rgba(255,255,255,0.28); }
+#btn-login:active { background: rgba(255,255,255,0.38); }
+
+#btn-logout {
+    background: rgba(231,76,60,0.32);
+    border: 1.5px solid rgba(231,76,60,0.6);
+    color: white;
+    border-radius: 8px;
+    padding: 5px 13px;
+    font-size: 0.82em;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+#btn-logout:hover  { background: rgba(231,76,60,0.52); }
+#btn-logout:active { background: rgba(231,76,60,0.68); }
+
+#auth-status {
+    font-size: 0.78em;
+    opacity: 0.88;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+/* --- Zeile 2: Aktions-Buttons + Wetter-Chip --- */
+#header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#header-actions > button { flex: 1; }
+
+/* Wetter-Chip (rechts in Zeile 2) */
+#wetter-chip {
+    font-size: 0.78em;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 20px;
+    padding: 4px 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+    flex-shrink: 0;
+}
+
+#map { flex: 1; min-height: 0; width: 100%; }
 
 /* === Routen-Karte (rechts) === */
 #routen-bar {
@@ -171,23 +281,33 @@ body { font-family: sans-serif; background: #f5f5f5; }
     100% { left: 100%; }
 }
 
-/* === Aufzeichnung-Button (im Header) === */
-#aufzeichnung-btn {
-    background: rgba(255,255,255,0.18);
+/* === Header-Aktions-Buttons (Standort, Aufzeichnen, Filtern) === */
+#standort-btn, #aufzeichnung-btn, #filter-btn {
+    background: rgba(255,255,255,0.15);
     color: white;
-    border: 1.5px solid rgba(255,255,255,0.45);
+    border: 1.5px solid rgba(255,255,255,0.35);
     border-radius: 20px;
-    padding: 6px 14px;
-    font-size: 0.85em;
-    font-weight: bold;
+    padding: 6px 10px;
+    font-size: 0.84em;
+    font-weight: 600;
     cursor: pointer;
     transition: background 0.2s;
     white-space: nowrap;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    text-align: center;
 }
-#aufzeichnung-btn:hover { background: rgba(255,255,255,0.3); }
+#standort-btn:hover,
+#aufzeichnung-btn:hover,
+#filter-btn:hover     { background: rgba(255,255,255,0.27); }
+
+#standort-btn:active,
+#aufzeichnung-btn:active,
+#filter-btn:active    { background: rgba(255,255,255,0.38); }
+
 #aufzeichnung-btn.aktiv {
-    background: rgba(231,76,60,0.75);
-    border-color: #ff6b6b;
+    background: rgba(231,76,60,0.72);
+    border-color: #ff7b7b;
     animation: btn-puls 1.4s ease-in-out infinite;
 }
 @keyframes btn-puls {
@@ -210,20 +330,6 @@ body { font-family: sans-serif; background: #f5f5f5; }
     50%       { opacity: 0.35; transform: scale(0.75); }
 }
 
-/* === Filter-Button (im Header) === */
-#filter-btn {
-    background: rgba(255,255,255,0.18);
-    color: white;
-    border: 1.5px solid rgba(255,255,255,0.45);
-    border-radius: 20px;
-    padding: 6px 14px;
-    font-size: 0.85em;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background 0.2s;
-    white-space: nowrap;
-}
-#filter-btn:hover { background: rgba(255,255,255,0.3); }
 #filter-btn.aktiv { background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.6); }
 
 /* === Filter-Panel === */
@@ -397,18 +503,19 @@ button, a {
 @media (max-width: 640px) {
 
     /* --- Header --- */
-    #header { padding: 9px 14px; gap: 8px; }
-    #header h1 { font-size: 1.05em; }
-    #header > span { display: none; }   /* Untertitel ausblenden */
+    #header { padding: 8px 12px 7px; gap: 6px; }
+    #header-titel { font-size: 1.0em; }
 
-    /* --- Wetterleiste --- */
-    #wetter-leiste { padding: 7px 14px; font-size: 0.82em; }
+    /* Login-Inputs kleiner auf Handy */
+    #login-container input[type="email"],
+    #login-container input[type="password"] { width: 90px; font-size: 0.75em; padding: 4px 7px; }
+    #btn-login, #btn-logout { padding: 4px 10px; font-size: 0.78em; }
+    #auth-status { max-width: 130px; font-size: 0.74em; }
 
-    /* --- Kartenhöhe (dvh = ohne Browser-Adressleiste) --- */
-    #map {
-        height: calc(100vh - 82px);     /* Fallback */
-        height: calc(100dvh - 82px);
-    }
+    /* Wetter-Chip auf Handy kleiner */
+    #wetter-chip { font-size: 0.72em; padding: 3px 8px; max-width: 120px; }
+
+    /* Karte füllt Rest automatisch via flex:1 — kein fix height nötig */
 
     /* --- Filter-Panel: volle Breite --- */
     #filter-panel { width: 100%; }
@@ -452,8 +559,6 @@ button, a {
     /* ✕-Button im Panel auf Handy noch größer */
     #filter-panel-kopf button { width: 44px; height: 44px; font-size: 1.35em; }
 
-    /* Standort-Button auf Handy */
-    #standort-btn { padding: 8px 12px; font-size: 1.05em; }
 
     /* Leaflet Popup-Schließen-Button */
     .leaflet-popup-close-button {
@@ -571,22 +676,6 @@ button, a {
 }
 .lichtbox-dot.aktiv { background: white; }
 
-/* === Standort-Button (Header) === */
-#standort-btn {
-    background: rgba(255,255,255,0.18);
-    color: white;
-    border: 1.5px solid rgba(255,255,255,0.45);
-    border-radius: 20px;
-    padding: 6px 12px;
-    font-size: 1em;
-    cursor: pointer;
-    transition: background 0.2s;
-    white-space: nowrap;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-}
-#standort-btn:hover  { background: rgba(255,255,255,0.3); }
-#standort-btn:active { background: rgba(255,255,255,0.4); }
 
 /* === Live-Standort-Punkt === */
 .standort-dot {

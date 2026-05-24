@@ -11,24 +11,24 @@
 </head>
 <body>
     <div id="header">
-        <h1>🍄 Mays Pilz-Hub BW</h1>
-        <span style="font-size: 0.85em; opacity: 0.85;">Baden-Württemberg</span>
-<!-- Ein einfaches Login-Formular für deine App -->
-<div id="login-container">
-  <h3>Pilz-Hub Login</h3>
-  <input type="email" id="login-email" placeholder="Deine E-Mail" /><br />
-  <input type="password" id="login-password" placeholder="Passwort" /><br />
-  <button type="button" id="btn-login">Einloggen</button>
-  <button type="button" id="btn-logout" style="display:none;">Ausloggen</button>
-  <p id="auth-status"></p>
-</div> <br>
-        <button id="standort-btn" onclick="window.zentriereAufStandort()" title="Zu meinem Standort">📍</button>
-        <button id="aufzeichnung-btn" onclick="window.toggleAufzeichnung()">⏺ Aufzeichnen</button>
-        <button id="filter-btn" onclick="window.toggleFilterPanel()">🔍 Filtern</button>
-    </div>
-    <div id="wetter-leiste">
-        🌤️ <b>Dein lokales Wetter:</b>
-        <span id="wetter-anzeige">Wird geladen (warte auf GPS)...</span>
+        <!-- Zeile 1: Logo + Auth -->
+        <div id="header-top">
+            <h1 id="header-titel">🍄 Mays Pilz-Hub BW</h1>
+            <div id="login-container">
+                <input type="email"    id="login-email"    placeholder="E-Mail" autocomplete="email" />
+                <input type="password" id="login-password" placeholder="Passwort" autocomplete="current-password" />
+                <button type="button"  id="btn-login">Einloggen</button>
+                <button type="button"  id="btn-logout" style="display:none;">Abmelden</button>
+                <span id="auth-status"></span>
+            </div>
+        </div>
+        <!-- Zeile 2: Aktions-Buttons + Wetter -->
+        <div id="header-actions">
+            <button id="standort-btn"     onclick="window.zentriereAufStandort()" title="Zu meinem Standort">📍 Standort</button>
+            <button id="aufzeichnung-btn" onclick="window.toggleAufzeichnung()">⏺ Aufzeichnen</button>
+            <button id="filter-btn"       onclick="window.toggleFilterPanel()">🔍 Filtern</button>
+            <span id="wetter-chip">🌤️ <span id="wetter-anzeige">GPS…</span></span>
+        </div>
     </div>
     <div id="map"></div>
 
@@ -72,27 +72,6 @@
                 <div id="filter-ergebnis"></div>
             </div>
 
-            <!-- Baumarten-Filter -->
-            <div class="filter-sektion" id="baum-filter-sektion" style="display:none;">
-                <h3>🌳 Baumarten ein-/ausblenden</h3>
-                <div id="baum-zoom-hinweis" style="font-size:0.83em;color:#e67e22;padding:4px 0;">
-                    🌲 Waldübersicht sichtbar (Laubwald/Nadelwald). Reinzoomen ab Zoom 12 für Artendetail.
-                </div>
-                <div id="baum-ladehinweis" style="display:none;font-size:0.83em;color:#2577b4;padding:4px 0;">
-                    ⏳ Bäume werden geladen…
-                </div>
-                <div id="baum-arten-liste" style="max-height:220px;overflow-y:auto;margin:6px 0;"></div>
-                <div style="display:flex;gap:6px;margin-top:4px;">
-                    <button onclick="window.alleBaumArtenAn()"
-                        style="flex:1;padding:5px;border:1px solid #ccc;border-radius:5px;cursor:pointer;font-size:0.82em;background:#f8f8f8;">
-                        ✓ Alle an
-                    </button>
-                    <button onclick="window.alleBaumArtenAus()"
-                        style="flex:1;padding:5px;border:1px solid #ccc;border-radius:5px;cursor:pointer;font-size:0.82em;background:#f8f8f8;">
-                        ✗ Alle aus
-                    </button>
-                </div>
-            </div>
 
             <!-- Gespeicherte Routen -->
             <div class="filter-sektion">
