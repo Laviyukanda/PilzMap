@@ -26,11 +26,12 @@
                 <span id="auth-status"></span>
             </div>
         </div>
-        <!-- Zeile 2: Filter (links) | Position (Mitte) | Aufzeichnen (rechts) -->
+        <!-- Zeile 2: Filter | Layer | Position | Aufzeichnen -->
         <div id="header-actions">
             <button id="filter-btn"       onclick="window.toggleFilterPanel()">🔍 Filter</button>
             <button id="standort-btn"     onclick="window.zentriereAufStandort()">📍 Position</button>
             <button id="aufzeichnung-btn" onclick="window.toggleAufzeichnung()">Aufzeichnen</button>
+            <button id="layer-btn"        onclick="window.toggleLayerPanel()">🗺️ Layer</button>
         </div>
     </div>
     <div id="map"></div>
@@ -80,6 +81,77 @@
             <div class="filter-sektion">
                 <h3>🗺️ Gespeicherte Routen</h3>
                 <div id="routen-liste-panel"><span style="color:#aaa; font-size:0.88em;">Wird beim Öffnen geladen…</span></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Layer-Panel -->
+    <div id="layer-panel">
+        <div id="layer-panel-kopf">
+            <span>🗺️ Kartenebenen</span>
+            <button onclick="window.toggleLayerPanel()" title="Schließen">✕</button>
+        </div>
+        <div id="layer-panel-inhalt">
+
+            <div class="layer-gruppe">
+                <h3>Hintergrundkarte</h3>
+                <label class="layer-item"><input type="radio" name="basemap" value="osm"      onchange="window.setzeBasemap(this.value)" checked> 🗺️ Straßenkarte (OSM)</label>
+                <label class="layer-item"><input type="radio" name="basemap" value="topo"     onchange="window.setzeBasemap(this.value)"> 🏔️ Topographie</label>
+                <label class="layer-item"><input type="radio" name="basemap" value="cyclosm"  onchange="window.setzeBasemap(this.value)"> 🚵 Outdoor / Wege</label>
+                <label class="layer-item"><input type="radio" name="basemap" value="satellit" onchange="window.setzeBasemap(this.value)"> 🛰️ Satellit (Esri)</label>
+                <label class="layer-item"><input type="radio" name="basemap" value="esritopo" onchange="window.setzeBasemap(this.value)"> 📐 Topo-Atlas (Esri)</label>
+            </div>
+
+            <div class="layer-gruppe">
+                <h3>Daten-Layer</h3>
+                <label class="layer-item"><input type="checkbox" id="cb-fundstellen"     onchange="window.toggleLayer('fundstellen',this)"     checked> 🍄 Pilzfunde</label>
+                <label class="layer-item"><input type="checkbox" id="cb-waldrefugien"    onchange="window.toggleLayer('waldrefugien',this)">           🌲 Waldrefugien (ForstBW)</label>
+                <div id="legende-waldrefugien" class="layer-legende">Wird geladen…</div>
+                <label class="layer-item"><input type="checkbox" id="cb-regenradar"      onchange="window.toggleLayer('regenradar',this)">             🌧️ Regenradar Live (DWD)</label>
+                <label class="layer-item"><input type="checkbox" id="cb-regenmesspunkte" onchange="window.toggleLayer('regenmesspunkte',this)">        📊 7-Tage-Regen (Messpunkte)</label>
+                <div id="legende-regenmesspunkte" class="layer-legende">
+                    <i class="ll-dot" style="background:#ff3333;"></i>&lt; 5 mm (Trocken)<br>
+                    <i class="ll-dot" style="background:#ffcc00;"></i>5–15 mm (Mäßig)<br>
+                    <i class="ll-dot" style="background:#2ca25f;"></i>15–30 mm (Gut)<br>
+                    <i class="ll-dot" style="background:#0055ff;"></i>&gt; 30 mm (Sehr nass)
+                </div>
+            </div>
+
+            <div class="layer-gruppe">
+                <h3>Schutzgebiete</h3>
+                <label class="layer-item"><input type="checkbox" id="cb-nsg"        onchange="window.toggleLayer('nsg',this)"        checked> 🌿 Naturschutzgebiete</label>
+                <label class="layer-item"><input type="checkbox" id="cb-np"         onchange="window.toggleLayer('np',this)"         checked> 🦅 Nationalparks</label>
+                <label class="layer-item"><input type="checkbox" id="cb-waldschutz" onchange="window.toggleLayer('waldschutz',this)" checked> 🛡️ Waldschutzgebiete</label>
+                <div id="legende-waldschutz" class="layer-legende aktiv">
+                    <i class="ll-sq" style="background:#ff0000;"></i>Bannwald<br>
+                    <i class="ll-sq" style="background:#2d9a4e;"></i>Schonwald
+                </div>
+            </div>
+
+            <div class="layer-gruppe">
+                <h3>Bodenanalyse</h3>
+                <label class="layer-item"><input type="checkbox" id="cb-bwi" onchange="window.toggleLayer('bwi',this)"> 🌿 Bodenvegetation (BWI 2002)</label>
+                <div id="legende-bwi" class="layer-legende">
+                    <i class="ll-sq" style="background:#1a9641;"></i>kaum Zeigerpflanzen (pH &gt;5,5)<br>
+                    <i class="ll-sq" style="background:#a6d96a;"></i>selten (pH ~5–5,5)<br>
+                    <i class="ll-sq" style="background:#ffffbf;border:1px solid #ccc;"></i>mäßig (pH ~4,5–5)<br>
+                    <i class="ll-sq" style="background:#fdae61;"></i>häufig (pH ~4–4,5)<br>
+                    <i class="ll-sq" style="background:#d7191c;"></i>dominant (pH ~3,5–4)<br>
+                    <small style="color:#999;">BWI 2002 · Thünen Institut</small>
+                </div>
+                <label class="layer-item"><input type="checkbox" id="cb-ph" onchange="window.toggleLayer('ph',this)"> 🧪 pH-Bodenwerte (ISRIC)</label>
+                <div id="legende-ph" class="layer-legende">
+                    <i class="ll-sq" style="background:#800026;"></i>&lt; 4,5<br>
+                    <i class="ll-sq" style="background:#bd0026;"></i>4,5–5<br>
+                    <i class="ll-sq" style="background:#e04040;"></i>5–5,5<br>
+                    <i class="ll-sq" style="background:#fcccc8;border:1px solid #ccc;"></i>5,5–6<br>
+                    <i class="ll-sq" style="background:#c8e8f8;border:1px solid #ccc;"></i>6–6,5<br>
+                    <i class="ll-sq" style="background:#4898d0;"></i>6,5–7<br>
+                    <i class="ll-sq" style="background:#1c60c0;"></i>7–7,5<br>
+                    <i class="ll-sq" style="background:#083888;"></i>&gt; 7,5<br>
+                    <small style="color:#999;">ISRIC SoilGrids · 0–5 cm</small>
+                </div>
             </div>
 
         </div>

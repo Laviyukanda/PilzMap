@@ -101,7 +101,49 @@ const overlayKarten = {
     "🌿 Bodenvegetation (BWI 2002)": phBodenLayer,
     "🧪 pH-Bodenwerte (ISRIC)": bodenPhWms
 };
-L.control.layers(basisKarten, overlayKarten).addTo(map);
+// Layer-Control wird durch eigenes Panel ersetzt (siehe #layer-panel in index.html)
+
+window.toggleLayerPanel = function() {
+    document.getElementById('layer-panel').classList.toggle('offen');
+};
+
+const _baseMaps = {};
+window.setzeBasemap = function(name) {
+    Object.values(_baseMaps).forEach(function(m) { if (map.hasLayer(m)) map.removeLayer(m); });
+    if (_baseMaps[name]) map.addLayer(_baseMaps[name]);
+};
+
+window.toggleLayer = function(id, cb) {
+    const layers = {
+        fundstellen:      fundstellenLayer,
+        waldrefugien:     waldLayer,
+        nsg:              naturschutzLayer,
+        np:               nationalparkLayer,
+        waldschutz:       waldschutzLayer,
+        regenradar:       regenRadarDWD,
+        regenmesspunkte:  stationenLayer,
+        bwi:              phBodenLayer,
+        ph:               bodenPhWms
+    };
+    const layer = layers[id];
+    if (!layer) return;
+    if (cb.checked) map.addLayer(layer); else map.removeLayer(layer);
+    const legEl = document.getElementById('legende-' + id);
+    if (legEl) legEl.classList.toggle('aktiv', cb.checked);
+    if (id === 'regenmesspunkte') {
+        if (cb.checked) { ladeRegenStationen(); _regenInterval = setInterval(ladeRegenStationen, REGEN_REFRESH_MS); }
+        else { clearInterval(_regenInterval); _regenInterval = null; }
+    }
+};
+
+// Basemap-Referenzen eintragen sobald Variablen bereit sind
+(function() {
+    _baseMaps.osm      = osm;
+    _baseMaps.topo     = topoMap;
+    _baseMaps.cyclosm  = cyclOsm;
+    _baseMaps.satellit = esriSatellit;
+    _baseMaps.esritopo = esriTopo;
+})();
 
 // === 2.3. BW-Grenzmaske (alles außerhalb ausgegraut) ===
 fetch('https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/master/2_bundeslaender/4_niedrig.geo.json')
@@ -186,24 +228,13 @@ fetch('ForstBW_Waldrefugien_-38784724193262813.geojson')
             }
         }).addTo(waldLayer);
 
-        // Legende dynamisch aus den tatsächlich vorhandenen Arten aufbauen
-        const waldLegende = L.control({ position: 'bottomright' });
-        waldLegende.onAdd = function() {
-            const div = L.DomUtil.create('div', 'info legend');
-            div.style.cssText = 'background:white;padding:6px 10px;border-radius:6px;font-size:0.82em;' +
-                'line-height:1.8;box-shadow:0 1px 5px rgba(0,0,0,0.3);max-height:260px;overflow-y:auto;';
-            div.innerHTML = '<b>🌲 Waldrefugien</b><br>' +
-                '<span style="font-size:0.78em;color:#666;">ForstBW · Baumart</span><br>' +
-                Array.from(vorhandeneArten).sort().map(function(art) {
-                    const farbe = getBaumartFarbe(art);
-                    return '<span style="display:inline-block;width:12px;height:12px;background:' + farbe +
-                           ';border-radius:2px;margin-right:5px;vertical-align:middle;"></span>' + art;
-                }).join('<br>');
-            return div;
-        };
-        map.on('overlayadd',    function(e) { if (e.layer === waldLayer) waldLegende.addTo(map); });
-        map.on('overlayremove', function(e) { if (e.layer === waldLayer) waldLegende.remove(); });
-        if (map.hasLayer(waldLayer)) waldLegende.addTo(map);
+        // Waldrefugien-Legende im Layer-Panel aktualisieren
+        const _wLegDiv = document.getElementById('legende-waldrefugien');
+        if (_wLegDiv) {
+            _wLegDiv.innerHTML = Array.from(vorhandeneArten).sort().map(function(art) {
+                return '<i class="ll-sq" style="background:' + getBaumartFarbe(art) + ';"></i>' + art;
+            }).join('<br>');
+        }
     })
     .catch(function(fehler) { console.error('Waldrefugien konnten nicht geladen werden:', fehler); });
 
@@ -248,16 +279,6 @@ fetch('nationalpark.json')
     .catch(function(fehler) { console.warn("Nationalparks-Datei fehlt noch:", fehler); });
 
 // === 3.3 Waldschutzgebiete laden (Bannwald = rot, Schonwald = grün) ===
-const waldschutzLegende = L.control({ position: 'bottomright' });
-waldschutzLegende.onAdd = function() {
-    const div = L.DomUtil.create('div', 'info legend');
-    div.style.cssText = 'background:white;padding:8px 12px;border-radius:6px;font-size:0.85em;line-height:1.9;box-shadow:0 1px 5px rgba(0,0,0,0.3);';
-    div.innerHTML =
-        '<b>🛡️ Waldschutzgebiete</b><br>' +
-        '<span style="display:inline-block;width:12px;height:12px;background:#ff0000;border-radius:2px;margin-right:6px;vertical-align:middle;"></span>Bannwald<br>' +
-        '<span style="display:inline-block;width:12px;height:12px;background:#2d9a4e;border-radius:2px;margin-right:6px;vertical-align:middle;"></span>Schonwald';
-    return div;
-};
 
 fetch('waldschutzgebiete.json')
     .then(function(antwort) { return antwort.json(); })
@@ -275,7 +296,6 @@ fetch('waldschutzgebiete.json')
                 });
             }
         }).addTo(waldschutzLayer);
-        waldschutzLegende.addTo(map);
     })
     .catch(function(fehler) { console.warn('Waldschutzgebiete nicht geladen:', fehler); });
 
@@ -334,48 +354,7 @@ fetch('ph-bodenwerte.json')
     })
     .catch(function(fehler) { console.warn('Bodenvegetation (BWI): Lade-Fehler:', fehler); });
 
-const phLegende = L.control({ position: 'bottomright' });
-phLegende.onAdd = function() {
-    const div = L.DomUtil.create('div', 'info legend');
-    div.style.cssText = 'background:white;padding:10px;border-radius:5px;box-shadow:0 0 15px rgba(0,0,0,0.2);font-family:sans-serif;font-size:13px;line-height:1.8;';
-    div.innerHTML = '<b>🌿 Bodenvegetation (BWI 2002)</b><br>' +
-        '<span style="font-size:0.8em;color:#666;">Säure-Index aus Zeigerpflanzen:<br>' +
-        '🌾 Drahtschmiele · 🫐 Heidelbeere<br>' +
-        '🔴 Preiselbeere · 🌸 Heidekraut</span><br>' +
-        '<hr style="margin:4px 0;border:none;border-top:1px solid #ddd;">' +
-        '<i style="background:#1a9641;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:middle;"></i>kaum Zeigerpflanzen (pH &gt;5,5)<br>' +
-        '<i style="background:#a6d96a;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:middle;"></i>selten (pH ~5–5,5)<br>' +
-        '<i style="background:#ffffbf;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:middle;"></i>mäßig (pH ~4,5–5)<br>' +
-        '<i style="background:#fdae61;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:middle;"></i>häufig (pH ~4–4,5)<br>' +
-        '<i style="background:#d7191c;width:12px;height:12px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:middle;"></i>dominant (pH ~3,5–4)<br>' +
-        '<span style="font-size:0.75em;color:#999;">Quelle: BWI 2002, Thünen Institut</span>';
-    return div;
-};
-
-// === 3.3.1 pH-Bodenwerte Legende (ISRIC SoilGrids) ===
-const _phIsricFarben = [
-    { farbe: '#800026', label: '&lt; 4,5' },
-    { farbe: '#bd0026', label: '4,5 – 5' },
-    { farbe: '#e04040', label: '5 – 5,5' },
-    { farbe: '#fcccc8', label: '5,5 – 6' },
-    { farbe: '#c8e8f8', label: '6 – 6,5' },
-    { farbe: '#4898d0', label: '6,5 – 7' },
-    { farbe: '#1c60c0', label: '7 – 7,5' },
-    { farbe: '#083888', label: '&gt; 7,5' }
-];
-const bodenPhLegende = L.control({ position: 'bottomright' });
-bodenPhLegende.onAdd = function() {
-    const div = L.DomUtil.create('div', 'info legend');
-    div.style.cssText = 'background:white;padding:10px;border-radius:5px;box-shadow:0 0 15px rgba(0,0,0,0.2);font-family:sans-serif;font-size:13px;line-height:1.8;min-width:160px;';
-    div.innerHTML = '<b>🧪 pH-Bodenwerte</b><br>' +
-        '<span style="font-size:0.78em;color:#666;">ISRIC SoilGrids · 0–5 cm</span><br>' +
-        '<hr style="margin:4px 0;border:none;border-top:1px solid #ddd;">' +
-        _phIsricFarben.map(function(e) {
-            return '<i style="background:' + e.farbe + ';width:14px;height:14px;display:inline-block;border-radius:2px;margin-right:6px;vertical-align:middle;"></i>' + e.label;
-        }).join('<br>') +
-        '<br><span style="font-size:0.72em;color:#999;">© ISRIC (CC BY 4.0)</span>';
-    return div;
-};
+// Legenden für Bodenvegetation und pH sind im #layer-panel eingebettet
 
 
 function getBaumartFarbe(name) {
@@ -1033,51 +1012,7 @@ function ladeRegenStationen() {
     });
 }
 
-const regenLegende = L.control({ position: 'topright' });
-regenLegende.onAdd = function(map) {
-    const div = L.DomUtil.create('div', 'info legend');
-    div.style.backgroundColor = 'white'; div.style.padding = '10px'; div.style.borderRadius = '5px';
-    div.style.boxShadow = '0 0 15px rgba(0,0,0,0.2)'; div.style.fontFamily = 'sans-serif'; div.style.fontSize = '14px';
-    div.innerHTML = `<b>🌧️ 7-Tage-Regen</b><br>
-        <i style="background: #ff3333; width: 12px; height: 12px; display: inline-block; border-radius: 50%; margin-right: 5px;"></i> &lt; 5 mm (Trocken)<br>
-        <i style="background: #ffcc00; width: 12px; height: 12px; display: inline-block; border-radius: 50%; margin-right: 5px;"></i> 5 - 15 mm (Mäßig)<br>
-        <i style="background: #2ca25f; width: 12px; height: 12px; display: inline-block; border-radius: 50%; margin-right: 5px;"></i> 15 - 30 mm (Gut)<br>
-        <i style="background: #0055ff; width: 12px; height: 12px; display: inline-block; border-radius: 50%; margin-right: 5px;"></i> &gt; 30 mm (Sehr nass)`;
-    return div;
-};
-
-map.on('overlayadd', function(e) {
-    if (e.layer === stationenLayer) {
-        regenLegende.addTo(map);
-        ladeRegenStationen();
-        _regenInterval = setInterval(ladeRegenStationen, REGEN_REFRESH_MS);
-    }
-    if (e.layer === phBodenLayer) {
-        phLegende.addTo(map);
-    }
-    if (e.layer === bodenPhWms) {
-        bodenPhLegende.addTo(map);
-    }
-    if (e.layer === waldschutzLayer) {
-        waldschutzLegende.addTo(map);
-    }
-});
-map.on('overlayremove', function(e) {
-    if (e.layer === stationenLayer) {
-        regenLegende.remove();
-        clearInterval(_regenInterval);
-        _regenInterval = null;
-    }
-    if (e.layer === phBodenLayer) {
-        phLegende.remove();
-    }
-    if (e.layer === bodenPhWms) {
-        bodenPhLegende.remove();
-    }
-    if (e.layer === waldschutzLayer) {
-        waldschutzLegende.remove();
-    }
-});
+// Legenden und Layer-Verwaltung über #layer-panel (overlayadd/overlayremove entfällt)
 
 // === 8. Suchfeld & Routenplaner ===
 if (typeof L.Control.geocoder === 'function') {
