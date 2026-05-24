@@ -13,6 +13,15 @@
     <div id="header">
         <h1>🍄 Mays Pilz-Hub BW</h1>
         <span style="font-size: 0.85em; opacity: 0.85;">Baden-Württemberg</span>
+<!-- Ein einfaches Login-Formular für deine App -->
+<div id="login-container">
+  <h3>Pilz-Hub Login</h3>
+  <input type="email" id="login-email" placeholder="Deine E-Mail" /><br />
+  <input type="password" id="login-password" placeholder="Passwort" /><br />
+  <button type="button" id="btn-login">Einloggen</button>
+  <button type="button" id="btn-logout" style="display:none;">Ausloggen</button>
+  <p id="auth-status"></p>
+</div> <br>
         <button id="standort-btn" onclick="window.zentriereAufStandort()" title="Zu meinem Standort">📍</button>
         <button id="aufzeichnung-btn" onclick="window.toggleAufzeichnung()">⏺ Aufzeichnen</button>
         <button id="filter-btn" onclick="window.toggleFilterPanel()">🔍 Filtern</button>

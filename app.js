@@ -688,8 +688,73 @@ const supabaseUrl = 'https://htaftyhatzvvdtatmapk.supabase.co';
 const supabaseKey = 'sb_publishable_uV0gGE5DEujJncxSoXcCug_B9SM4VXR';
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
+// ==========================================
+// === 6.0 LOGIN & AUTHENTIFIZIERUNG ========
+// ==========================================
+
+// Holt die HTML-Elemente (die du in der index.html angelegt hast)
+const emailInput = document.getElementById('login-email');
+const passwordInput = document.getElementById('login-password');
+const loginBtn = document.getElementById('btn-login');
+const logoutBtn = document.getElementById('btn-logout');
+const statusText = document.getElementById('auth-status');
+const loginContainer = document.getElementById('login-container');
+
+// Login-Funktion
+async function login() {
+    statusText.innerText = "⏳ Logge ein...";
+    const { data, error } = await _supabase.auth.signInWithPassword({
+        email: emailInput?.value,
+        password: passwordInput?.value,
+    });
+
+    if (error) {
+        statusText.innerText = "❌ Fehler: " + error.message;
+    } else {
+        // Erfolg wird über den onAuthStateChange Listener (unten) geregelt
+        emailInput.value = '';
+        passwordInput.value = '';
+    }
+}
+
+// Logout-Funktion
+async function logout() {
+    await _supabase.auth.signOut();
+    window.pilzDatenSpeicher = {}; // Speicher leeren
+    fundstellenLayer.clearLayers(); // Karte von geheimen Punkten säubern
+}
+
+// Button-Klicks mit Funktionen verknüpfen (falls die Buttons existieren)
+if (loginBtn) loginBtn.addEventListener('click', login);
+if (logoutBtn) logoutBtn.addEventListener('click', logout);
+
+// --- Magie: Hört auf Login/Logout und merkt sich dich ---
+_supabase.auth.onAuthStateChange((event, session) => {
+    if (session) {
+        // Jemand ist eingeloggt!
+        if (statusText) statusText.innerText = `✅ Eingeloggt als ${session.user.email}`;
+        if (loginBtn) loginBtn.style.display = 'none';
+        if (emailInput) emailInput.style.display = 'none';
+        if (passwordInput) passwordInput.style.display = 'none';
+        if (logoutBtn) logoutBtn.style.display = 'inline-block';
+        
+        // JETZT erst die Pilze laden!
+        ladePilzeAusCloud(); 
+    } else {
+        // Niemand ist eingeloggt
+        if (statusText) statusText.innerText = "🔒 Bitte einloggen";
+        if (loginBtn) loginBtn.style.display = 'inline-block';
+        if (emailInput) emailInput.style.display = 'inline-block';
+        if (passwordInput) passwordInput.style.display = 'inline-block';
+        if (logoutBtn) logoutBtn.style.display = 'none';
+    }
+});
+
+// ==========================================
+
 window.pilzDatenSpeicher = {}; 
 window.pilzMarkerSpeicher = {}; 
+ 
 
 // === 6.1. Neues Fund-Formular (Rechtsklick) ===
 // === 6.1. Neues Fund-Formular (Rechtsklick) ===
@@ -919,7 +984,6 @@ async function ladePilzeAusCloud() {
         });
     }
 }
-ladePilzeAusCloud();
 
 // === 7. Schrotflinten-Modus: 7-Tage-Regen an festen Stationen ===
 const wetterStationen = [
