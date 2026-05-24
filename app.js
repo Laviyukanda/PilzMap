@@ -723,25 +723,33 @@ window.speichereNeuenFund = async function(lat, lng) {
     }
 };
 
+const _genFarben = { 'Essbar': '#27ae60', 'Giftig': '#c0392b', 'Ungenießbar': '#e67e22', 'Unbekannt': '#95a5a6' };
+const _genIkons  = { 'Essbar': '🍽️', 'Giftig': '☠️', 'Ungenießbar': '🤢', 'Unbekannt': '❓' };
+
 window.generiereAnsicht = function(id) {
     const p = window.pilzDatenSpeicher[id];
-    const datumAnzeige = p.fund_datum
-        ? new Date(p.fund_datum + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
-        : (p.created_at ? new Date(p.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
-    let html = `<div style="font-family: sans-serif; min-width: 240px; padding-bottom: 5px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
-            <h4 style="margin: 0; font-size: 1.1em;">🍄 ${p.geniessbarkeit || "Unbekannt"}</h4>
-            <button onclick="oeffneBearbeitung(${id})" style="background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 0; opacity: 0.6;">✏️</button>
+    const gen      = p.geniessbarkeit || 'Unbekannt';
+    const genFarbe = _genFarben[gen] || '#95a5a6';
+    const genIkon  = _genIkons[gen]  || '❓';
+    const datumStr = p.fund_datum || (p.created_at ? p.created_at.slice(0, 10) : '');
+    const datumAnzeige = datumStr
+        ? new Date(datumStr + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : '';
+
+    let html = `<div style="font-family:'Segoe UI',sans-serif;min-width:240px;padding-bottom:4px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span style="background:${genFarbe};color:white;padding:3px 11px;border-radius:20px;font-size:0.85em;font-weight:600;">${genIkon} ${gen}</span>
+            <button onclick="event.stopPropagation(); window.oeffneBearbeitung(${id})" style="background:none;border:1px solid #ddd;cursor:pointer;font-size:0.82em;padding:3px 9px;border-radius:6px;color:#555;">✏️ Bearbeiten</button>
         </div>
-        ${datumAnzeige ? `<div style="font-size:0.8em; color:#888; margin-bottom:6px;">📅 ${datumAnzeige}</div>` : ''}
-        <p style="margin: 0 0 12px 0; color: #444;">${p.notiz || "<i>Keine Notiz</i>"}</p>
-        <div style="display: flex; flex-direction: column; gap: 6px;">`;
-    
-    if (p.foto_url) { html += `<img src="${p.foto_url}" onclick="window.oeffneLichtbox(${id},0)" style="width:100%;max-height:220px;object-fit:contain;background:#f9f9f9;border-radius:6px;box-shadow:0 2px 5px rgba(0,0,0,0.15);cursor:pointer;">`; }
+        ${datumAnzeige ? `<div style="font-size:0.8em;color:#888;margin-bottom:6px;">📅 ${datumAnzeige}</div>` : ''}
+        <p style="margin:0 0 10px 0;color:#444;font-size:0.95em;">${p.notiz || '<i style="color:#aaa;">Keine Notiz</i>'}</p>
+        <div style="display:flex;flex-direction:column;gap:6px;">`;
+
+    if (p.foto_url) { html += `<img src="${p.foto_url}" onclick="window.oeffneLichtbox(${id},0)" style="width:100%;max-height:220px;object-fit:contain;background:#f5f5f5;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.12);cursor:pointer;">`; }
     if (p.foto_url_2 || p.foto_url_3) {
-        html += `<div style="display:flex;gap:6px;justify-content:center;">`;
-        if (p.foto_url_2) { html += `<img src="${p.foto_url_2}" onclick="window.oeffneLichtbox(${id},1)" style="flex:1;width:100%;height:100px;object-fit:contain;background:#f9f9f9;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.15);cursor:pointer;">`; }
-        if (p.foto_url_3) { html += `<img src="${p.foto_url_3}" onclick="window.oeffneLichtbox(${id},2)" style="flex:1;width:100%;height:100px;object-fit:contain;background:#f9f9f9;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.15);cursor:pointer;">`; }
+        html += `<div style="display:flex;gap:6px;">`;
+        if (p.foto_url_2) { html += `<img src="${p.foto_url_2}" onclick="window.oeffneLichtbox(${id},1)" style="flex:1;height:90px;object-fit:cover;background:#f5f5f5;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.12);cursor:pointer;">`; }
+        if (p.foto_url_3) { html += `<img src="${p.foto_url_3}" onclick="window.oeffneLichtbox(${id},2)" style="flex:1;height:90px;object-fit:cover;background:#f5f5f5;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.12);cursor:pointer;">`; }
         html += `</div>`;
     }
     html += `</div></div>`;
@@ -796,70 +804,123 @@ document.addEventListener('keydown', function(e) {
 });
 
 window.oeffneBearbeitung = function(id) {
-    const p = window.pilzDatenSpeicher[id];
+    const p      = window.pilzDatenSpeicher[id];
     const marker = window.pilzMarkerSpeicher[id];
-    let freieSlotsCount = 0;
-    if (!p.foto_url) freieSlotsCount++;
-    if (!p.foto_url_2) freieSlotsCount++;
-    if (!p.foto_url_3) freieSlotsCount++;
 
-    let html = `<div style="font-family: sans-serif; min-width: 220px;">
-        <h4 style="margin: 0 0 5px 0;">✏️ Pilz bearbeiten</h4>
-        <input type="text" id="edit-notiz-${id}" value="${p.notiz || ''}" style="width: 100%; margin-bottom: 5px; padding: 5px;">
-        <select id="edit-gen-${id}" style="width: 100%; margin-bottom: 8px; padding: 5px;">
-            <option value="Unbekannt" ${p.geniessbarkeit === 'Unbekannt' ? 'selected' : ''}>❓ Unbekannt</option>
-            <option value="Essbar" ${p.geniessbarkeit === 'Essbar' ? 'selected' : ''}>🍽️ Essbar</option>
-            <option value="Ungenießbar" ${p.geniessbarkeit === 'Ungenießbar' ? 'selected' : ''}>🤢 Ungenießbar</option>
-            <option value="Giftig" ${p.geniessbarkeit === 'Giftig' ? 'selected' : ''}>☠️ Giftig</option>
-        </select>
-        <label style="font-size: 0.8em; display:block; text-align:left; margin-bottom:3px;">📅 Funddatum:</label>
-        <input type="date" id="edit-datum-${id}" value="${p.fund_datum || ''}" style="width: 100%; margin-bottom: 10px; padding: 5px;">
-        <div style="font-size: 0.8em; margin-bottom: 10px;">
-            ${p.foto_url ? `<div><span>📷 Foto 1:</span> <button onclick="loescheEigenschaft(${id}, 'foto_url')" style="color:red; background:none; border:none; cursor:pointer;">🗑️ Löschen</button></div>` : ''}
-            ${p.foto_url_2 ? `<div><span>📷 Foto 2:</span> <button onclick="loescheEigenschaft(${id}, 'foto_url_2')" style="color:red; background:none; border:none; cursor:pointer;">🗑️ Löschen</button></div>` : ''}
-            ${p.foto_url_3 ? `<div><span>📷 Foto 3:</span> <button onclick="loescheEigenschaft(${id}, 'foto_url_3')" style="color:red; background:none; border:none; cursor:pointer;">🗑️ Löschen</button></div>` : ''}
+
+    const slots       = ['foto_url', 'foto_url_2', 'foto_url_3'];
+    const freieSlots  = slots.filter(s => !p[s]);
+    const fotoNamen   = ['Foto 1', 'Foto 2', 'Foto 3'];
+
+    // Vorhandene Fotos als Thumbnails mit Löschen-X
+    let fotoThumbsHtml = '';
+    slots.forEach(function(slot, i) {
+        if (p[slot]) {
+            fotoThumbsHtml += `
+                <div style="position:relative;display:inline-block;margin:3px;">
+                    <img src="${p[slot]}" style="height:62px;width:62px;object-fit:cover;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.18);" alt="${fotoNamen[i]}">
+                    <button onclick="window.loescheEigenschaft(${id},'${slot}')" title="${fotoNamen[i]} löschen"
+                            style="position:absolute;top:-6px;right:-6px;background:#c0392b;border:none;color:white;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:20px;padding:0;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.3);">✕</button>
+                </div>`;
+        }
+    });
+
+    const inp = 'width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:0.92em;background:#fafafa;margin-bottom:9px;display:block;';
+
+    const html = `
+    <div style="font-family:'Segoe UI',sans-serif;min-width:260px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <button onclick="event.stopPropagation(); window.zurueckZurAnsicht(${id})"
+                    style="background:#f0f0f0;border:none;cursor:pointer;padding:4px 9px;border-radius:6px;font-size:0.88em;color:#444;">← Zurück</button>
+            <h4 style="margin:0;font-size:1.0em;color:#333;">✏️ Pilz bearbeiten</h4>
         </div>
-        ${freieSlotsCount > 0 ? `<div style="background: #f9f9f9; padding: 8px; border-radius: 5px; border: 1px dashed #ccc;"><input type="file" id="edit-foto-${id}" accept="image/*" multiple style="width: 100%;"></div>` : ''}
-        <button onclick="speichereAenderungen(${id})" style="width: 100%; margin-top:5px; padding: 6px; background: #2ca25f; color: white; border: none; border-radius: 5px; cursor:pointer;">💾 Speichern</button>
-        <button onclick="loeschePilzKompett(${id})" style="width: 100%; margin-top:5px; padding: 6px; background: #ff3333; color: white; border: none; border-radius: 5px; cursor:pointer;">🚨 Löschen</button>
-        <div id="edit-upload-status-${id}" style="margin-top: 10px; font-size: 0.9em; font-weight: bold;"></div>
+
+        <input  type="text" id="edit-notiz-${id}"
+                value="${(p.notiz || '').replace(/"/g,'&quot;').replace(/</g,'&lt;')}"
+                placeholder="Name / Notiz"
+                style="${inp}">
+
+        <select id="edit-gen-${id}" style="${inp}">
+            <option value="Unbekannt"   ${p.geniessbarkeit === 'Unbekannt'   ? 'selected' : ''}>❓ Unbekannt</option>
+            <option value="Essbar"      ${p.geniessbarkeit === 'Essbar'      ? 'selected' : ''}>🍽️ Essbar</option>
+            <option value="Ungenießbar" ${p.geniessbarkeit === 'Ungenießbar' ? 'selected' : ''}>🤢 Ungenießbar</option>
+            <option value="Giftig"      ${p.geniessbarkeit === 'Giftig'      ? 'selected' : ''}>☠️ Giftig</option>
+        </select>
+
+        <label style="font-size:0.82em;color:#666;display:block;margin-bottom:4px;">📅 Funddatum</label>
+        <input type="date" id="edit-datum-${id}" value="${p.fund_datum || ''}" style="${inp}">
+
+        ${fotoThumbsHtml ? `
+        <div style="margin-bottom:10px;">
+            <div style="font-size:0.82em;color:#666;margin-bottom:6px;">📷 Fotos</div>
+            <div style="display:flex;flex-wrap:wrap;">${fotoThumbsHtml}</div>
+        </div>` : ''}
+
+        ${freieSlots.length > 0 ? `
+        <label style="font-size:0.82em;color:#666;display:block;margin-bottom:4px;">📷 Fotos hinzufügen (noch ${freieSlots.length} ${freieSlots.length === 1 ? 'Slot' : 'Slots'} frei)</label>
+        <div style="background:#f5f5f5;border:1.5px dashed #bbb;border-radius:8px;padding:8px;margin-bottom:12px;">
+            <input type="file" id="edit-foto-${id}" accept="image/*" multiple style="width:100%;font-size:0.88em;">
+        </div>` : ''}
+
+        <button onclick="window.speichereAenderungen(${id})"
+                style="width:100%;padding:10px;background:#27ae60;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.95em;margin-bottom:8px;">
+            💾 Speichern
+        </button>
+        <div style="text-align:center;">
+            <button onclick="window.loeschePilzKompett(${id})"
+                    style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:0.82em;padding:4px 8px;opacity:0.8;">
+                🗑️ Fund löschen
+            </button>
+        </div>
+        <div id="edit-upload-status-${id}" style="margin-top:8px;font-size:0.88em;text-align:center;min-height:1.2em;"></div>
     </div>`;
+
     marker.setPopupContent(html);
+    marker.openPopup();
+};
+
+window.zurueckZurAnsicht = function(id) {
+    const marker = window.pilzMarkerSpeicher[id];
+    marker.setPopupContent(window.generiereAnsicht(id));
+    marker.openPopup();
 };
 
 window.speichereAenderungen = async function(id) {
-    const neueNotiz = document.getElementById(`edit-notiz-${id}`).value;
-    const neuesGen = document.getElementById(`edit-gen-${id}`).value;
+    const neueNotiz  = document.getElementById(`edit-notiz-${id}`).value;
+    const neuesGen   = document.getElementById(`edit-gen-${id}`).value;
     const neuesDatum = document.getElementById(`edit-datum-${id}`).value;
-    const fotoFeld = document.getElementById(`edit-foto-${id}`);
-    const dateien = fotoFeld ? fotoFeld.files : [];
-    const p = window.pilzDatenSpeicher[id];
-    
-    let freieSlots = [];
-    if (!p.foto_url) freieSlots.push('foto_url');
-    if (!p.foto_url_2) freieSlots.push('foto_url_2');
-    if (!p.foto_url_3) freieSlots.push('foto_url_3');
+    const fotoFeld   = document.getElementById(`edit-foto-${id}`);
+    const dateien    = fotoFeld ? fotoFeld.files : [];
+    const p          = window.pilzDatenSpeicher[id];
+    const statusDiv  = document.getElementById(`edit-upload-status-${id}`);
 
-    if (dateien.length > freieSlots.length) { return; }
+    const freieSlots = ['foto_url', 'foto_url_2', 'foto_url_3'].filter(s => !p[s]);
+    if (dateien.length > freieSlots.length) {
+        if (statusDiv) statusDiv.innerHTML = '<span style="color:#c0392b;">⚠️ Zu viele Fotos gewählt.</span>';
+        return;
+    }
+
+    if (statusDiv) statusDiv.innerHTML = '<span style="color:#888;">⏳ Wird gespeichert…</span>';
 
     const updateDaten = { notiz: neueNotiz, geniessbarkeit: neuesGen, fund_datum: neuesDatum || null };
     for (let i = 0; i < dateien.length; i++) {
-        const dateiName = `${Date.now()}_${dateien[i].name.replace(/[^a-zA-Z0-9.]/g, "")}`;
+        const dateiName = `${Date.now()}_${dateien[i].name.replace(/[^a-zA-Z0-9.]/g, '')}`;
         const { error } = await _supabase.storage.from('pilzfotos').upload(dateiName, dateien[i]);
         if (!error) {
-            const publicUrl = _supabase.storage.from('pilzfotos').getPublicUrl(dateiName).data.publicUrl;
-            updateDaten[freieSlots[i]] = publicUrl;
+            updateDaten[freieSlots[i]] = _supabase.storage.from('pilzfotos').getPublicUrl(dateiName).data.publicUrl;
         }
     }
 
     const { error } = await _supabase.from('pilze').update(updateDaten).eq('id', id);
-    if (!error) {
-        window.pilzDatenSpeicher[id].notiz = neueNotiz;
-        window.pilzDatenSpeicher[id].geniessbarkeit = neuesGen;
-        window.pilzDatenSpeicher[id].fund_datum = neuesDatum || null;
-        Object.keys(updateDaten).forEach(key => { window.pilzDatenSpeicher[id][key] = updateDaten[key]; });
-        setTimeout(() => { window.pilzMarkerSpeicher[id].setPopupContent(window.generiereAnsicht(id)); }, 800);
+    if (error) {
+        console.error('Supabase Update-Fehler:', error.message, '| Code:', error.code, '| Details:', error.details, '| Hint:', error.hint);
+        if (statusDiv) statusDiv.innerHTML = `<span style="color:#c0392b;">❌ ${error.message || 'Fehler beim Speichern'}</span>`;
+        return;
     }
+
+    Object.keys(updateDaten).forEach(key => { window.pilzDatenSpeicher[id][key] = updateDaten[key]; });
+    if (statusDiv) statusDiv.innerHTML = '<span style="color:#27ae60;">✅ Gespeichert!</span>';
+    setTimeout(() => { window.zurueckZurAnsicht(id); }, 900);
 };
 
 window.loescheEigenschaft = async function(id, spaltenName) {
