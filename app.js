@@ -1061,7 +1061,7 @@ window.aktualisiereRoutenBar = function() {
                     <div class="rb-stat-label">Abstieg</div>
                 </div>
             </div>
-            <div class="rb-nsg">🌿 ${d.nsg_anteil}% Naturschutzgebiet</div>
+            ${_nsgBlock(d)}
             <input type="text" id="tour-name-inline" class="rb-name-input" placeholder="Tour benennen…">
             <div class="rb-actions">
                 <button class="routen-btn routen-btn-gruen" onclick="window.speichereAufzeichnungInline()">💾 Speichern</button>
@@ -1096,7 +1096,7 @@ window.aktualisiereRoutenBar = function() {
                     <div class="rb-stat-label">Abstieg</div>
                 </div>
             </div>
-            <div class="rb-nsg">🌿 ${d.nsg_anteil}% Naturschutzgebiet</div>
+            ${_nsgBlock(d)}
             <div class="rb-actions">
                 <button class="routen-btn routen-btn-gruen" onclick="window.oeffneTourSpeichern()">💾 Speichern</button>
                 <button class="routen-btn routen-btn-rot"   onclick="window.routeKomplettLoeschen()">🗑️ Löschen</button>
@@ -1302,25 +1302,15 @@ window._verarbeiteRoute = function(coords, distanzM, zeitMs) {
         if (diff > 0) aufstieg += diff; else abstieg += Math.abs(diff);
     }
 
-    const schutzGebieteGeoJSON = holeAlleSchutzgebieteGeoJSON();
-    let schutzPunkte = 0;
-    if (schutzGebieteGeoJSON.features.length > 0) {
-        coords.forEach(p => {
-            const pt = turf.point([p.lng, p.lat]);
-            if (schutzGebieteGeoJSON.features.some(f => {
-                const typ = f.geometry && f.geometry.type;
-                return (typ === 'Polygon' || typ === 'MultiPolygon') && turf.booleanPointInPolygon(pt, f);
-            })) schutzPunkte++;
-        });
-    }
-    const schutzAnteil = coords.length > 0 ? Math.round((schutzPunkte / coords.length) * 100) : 0;
+    const { anteil: schutzAnteil, liste: schutzListe } = berechneSchutzgebietsDaten(coords);
 
     window.aktuelleTourDaten = {
-        distanz: distanzKm,
-        dauer:   dauerMin,
+        distanz:  distanzKm,
+        dauer:    dauerMin,
         aufstieg: Math.round(aufstieg),
         abstieg:  Math.round(abstieg),
-        nsg_anteil: schutzAnteil,
+        nsg_anteil:         schutzAnteil,
+        schutzgebiete_liste: schutzListe,
         koordinaten: coords
     };
 
@@ -1446,21 +1436,74 @@ window.speichereAufzeichnungInline = async function() {
 };
 
 function holeAlleSchutzgebieteGeoJSON() {
-    let alleFeatures = [];
-    // Direkte Referenzen: unabhängig davon ob der Layer gerade sichtbar ist
-    [naturschutzLayer, nationalparkLayer, waldschutzLayer].forEach(function(schutzLayer) {
-        schutzLayer.eachLayer(function(subLayer) {
-            // subLayer ist ein L.GeoJSON (FeatureGroup) → eine Ebene tiefer iterieren
+    const alleFeatures = [];
+    const schichten = [
+        { layer: naturschutzLayer, art: 'Naturschutzgebiet' },
+        { layer: nationalparkLayer, art: 'Nationalpark' },
+        { layer: waldschutzLayer,   art: null }  // art steht im Attribut SCHUTZSTAT
+    ];
+    schichten.forEach(function(s) {
+        s.layer.eachLayer(function(subLayer) {
             if (typeof subLayer.eachLayer === 'function') {
                 subLayer.eachLayer(function(fl) {
-                    if (fl.toGeoJSON) alleFeatures.push(fl.toGeoJSON());
+                    if (!fl.toGeoJSON) return;
+                    const feat = fl.toGeoJSON();
+                    feat.properties = feat.properties || {};
+                    if (s.art) feat.properties._art = s.art;
+                    alleFeatures.push(feat);
                 });
             } else if (subLayer.toGeoJSON) {
-                alleFeatures.push(subLayer.toGeoJSON());
+                const feat = subLayer.toGeoJSON();
+                feat.properties = feat.properties || {};
+                if (s.art) feat.properties._art = s.art;
+                alleFeatures.push(feat);
             }
         });
     });
     return turf.featureCollection(alleFeatures);
+}
+
+const _schutzIkon = { 'Naturschutzgebiet': '🌿', 'Nationalpark': '🦅', 'Bannwald': '🚫', 'Schonwald': '🌲' };
+
+function berechneSchutzgebietsDaten(coords) {
+    const geoJSON = holeAlleSchutzgebieteGeoJSON();
+    let schutzPunkte = 0;
+    const gefunden = new Map(); // name → { art, ikon }
+
+    if (geoJSON.features.length > 0) {
+        coords.forEach(function(p) {
+            const pt = turf.point([p.lng, p.lat]);
+            let getroffen = false;
+            geoJSON.features.forEach(function(f) {
+                const typ = f.geometry && f.geometry.type;
+                if ((typ === 'Polygon' || typ === 'MultiPolygon') && turf.booleanPointInPolygon(pt, f)) {
+                    getroffen = true;
+                    const props = f.properties || {};
+                    const art   = props._art || props.SCHUTZSTAT || 'Schutzgebiet';
+                    const name  = props.NAME || props.OBJEKT || 'Unbekannt';
+                    if (!gefunden.has(name)) {
+                        gefunden.set(name, { art, ikon: _schutzIkon[art] || '🌿' });
+                    }
+                }
+            });
+            if (getroffen) schutzPunkte++;
+        });
+    }
+
+    const anteil = coords.length > 0 ? Math.round((schutzPunkte / coords.length) * 100) : 0;
+    const liste  = Array.from(gefunden.entries()).map(([name, v]) => ({ name, art: v.art, ikon: v.ikon }));
+    return { anteil, liste };
+}
+
+function _nsgBlock(d) {
+    const liste = d.schutzgebiete_liste || [];
+    if (!d.nsg_anteil) {
+        return '<div class="rb-nsg rb-nsg-frei">✅ Kein Schutzgebiet</div>';
+    }
+    const zeilen = liste.map(function(g) {
+        return `<div class="rb-nsg-eintrag">${g.ikon} ${g.name}<span class="rb-nsg-art">${g.art}</span></div>`;
+    }).join('');
+    return `<div class="rb-nsg"><div class="rb-nsg-kopf">🌿 ${d.nsg_anteil}% Schutzgebiet</div>${zeilen}</div>`;
 }
 
 // === 9. Das Auto-Feature ===
@@ -1855,24 +1898,15 @@ window.stoppeAufzeichnung = function() {
         if (diff > 0) aufstieg += diff; else abstieg += Math.abs(diff);
     }
 
-    const schutzGebieteGeoJSON = holeAlleSchutzgebieteGeoJSON();
-    let schutzPunkte = 0;
-    if (schutzGebieteGeoJSON.features.length > 0) {
-        coords.forEach(p => {
-            const pt = turf.point([p.lng, p.lat]);
-            if (schutzGebieteGeoJSON.features.some(f => {
-                const typ = f.geometry && f.geometry.type;
-                return (typ === 'Polygon' || typ === 'MultiPolygon') && turf.booleanPointInPolygon(pt, f);
-            })) schutzPunkte++;
-        });
-    }
+    const { anteil: schutzAnteil, liste: schutzListe } = berechneSchutzgebietsDaten(coords);
 
     window.aktuelleTourDaten = {
-        distanz:    (window._aufzeichnungDistanz / 1000).toFixed(2),
-        dauer:      Math.round((Date.now() - window._aufzeichnungStart) / 60000),
-        aufstieg:   Math.round(aufstieg),
-        abstieg:    Math.round(abstieg),
-        nsg_anteil: coords.length > 0 ? Math.round((schutzPunkte / coords.length) * 100) : 0,
+        distanz:  (window._aufzeichnungDistanz / 1000).toFixed(2),
+        dauer:    Math.round((Date.now() - window._aufzeichnungStart) / 60000),
+        aufstieg: Math.round(aufstieg),
+        abstieg:  Math.round(abstieg),
+        nsg_anteil:          schutzAnteil,
+        schutzgebiete_liste: schutzListe,
         koordinaten: coords
     };
 
