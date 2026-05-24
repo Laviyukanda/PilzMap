@@ -218,8 +218,10 @@ fetch('naturschutzgebiet.json')
             },
             style: { color: '#ff0000', fillColor: '#ff0000', weight: 2, fillOpacity: 0.5 },
             onEachFeature: function(feature, layer) {
-                const name = feature.properties.NAME || feature.properties.OBJEKT || "Unbenanntes Gebiet";
-                layer.bindPopup(`🌿 <b>Naturschutzgebiet:</b><br>${name}`);
+                layer.on('click', function(e) {
+                    e.originalEvent.stopPropagation();
+                    oeffneKlickPopup(e.latlng);
+                });
             }
         }).addTo(naturschutzLayer);
     })
@@ -236,8 +238,10 @@ fetch('nationalpark.json')
             },
             style: { color: '#ff0000', fillColor: '#ff0000', weight: 2, fillOpacity: 0.5 },
             onEachFeature: function(feature, layer) {
-                const name = feature.properties.NAME || feature.properties.OBJEKT || "Unbenanntes Gebiet";
-                layer.bindPopup(`🦅 <b>Nationalpark:</b><br>${name}`);
+                layer.on('click', function(e) {
+                    e.originalEvent.stopPropagation();
+                    oeffneKlickPopup(e.latlng);
+                });
             }
         }).addTo(nationalparkLayer);
     })
@@ -265,14 +269,10 @@ fetch('waldschutzgebiete.json')
                 return { color: farbe, fillColor: farbe, weight: 2, fillOpacity: 0.4 };
             },
             onEachFeature: function(feature, layer) {
-                const p    = feature.properties;
-                const typ  = p.SCHUTZSTAT || '–';
-                const ikon = typ === 'Bannwald' ? '🚫' : '🌿';
-                layer.bindPopup(
-                    ikon + ' <b>' + typ + '</b><br>' +
-                    '<span style="font-size:0.9em;">' + (p.OBJEKT || '') + '</span>' +
-                    (p.VO_DATUM ? '<br><span style="font-size:0.8em;color:#888;">Seit ' + p.VO_DATUM + '</span>' : '')
-                );
+                layer.on('click', function(e) {
+                    e.originalEvent.stopPropagation();
+                    oeffneKlickPopup(e.latlng);
+                });
             }
         }).addTo(waldschutzLayer);
         waldschutzLegende.addTo(map);
@@ -464,15 +464,50 @@ window.zentriereAufStandort = function() {
     }
 };
 
-// === 5. Live-Wetter & Ortsname per Mausklick ===
-map.on('click', function(e) {
-    const lat = e.latlng.lat;
-    const lng = e.latlng.lng;
+// === 5. Einheitliches Klick-Popup: Layer-Info + Wetter + Routing ===
+
+function holeLayerTrefferAnPunkt(lat, lng) {
+    const pt = turf.point([lng, lat]);
+    const treffer = [];
+    const ikonMap = { 'Naturschutzgebiet': '🌿', 'Nationalpark': '🦅', 'Bannwald': '🚫', 'Schonwald': '🌲' };
+
+    function pruefeGruppe(gruppe, defaultArt) {
+        if (!map.hasLayer(gruppe)) return;
+        gruppe.eachLayer(function(sub) {
+            function checkFeat(fl) {
+                if (!fl.toGeoJSON) return;
+                try {
+                    const feat = fl.toGeoJSON();
+                    if (!feat.geometry) return;
+                    if (turf.booleanPointInPolygon(pt, feat)) {
+                        const p   = feat.properties || {};
+                        const art = defaultArt || p.SCHUTZSTAT || '–';
+                        const name = p.NAME || p.OBJEKT || 'Unbenanntes Gebiet';
+                        treffer.push({ art, name, ikon: ikonMap[art] || '🌿' });
+                    }
+                } catch(_) {}
+            }
+            if (typeof sub.eachLayer === 'function') sub.eachLayer(checkFeat);
+            else checkFeat(sub);
+        });
+    }
+
+    pruefeGruppe(naturschutzLayer, 'Naturschutzgebiet');
+    pruefeGruppe(nationalparkLayer, 'Nationalpark');
+    pruefeGruppe(waldschutzLayer, null);
+    return treffer;
+}
+
+function oeffneKlickPopup(latlng) {
+    const lat  = latlng.lat;
+    const lng  = latlng.lng;
     const latR = lat.toFixed(6);
     const lngR = lng.toFixed(6);
 
+    const layerTreffer = holeLayerTrefferAnPunkt(lat, lng);
+
     const ladePopup = L.popup()
-        .setLatLng(e.latlng)
+        .setLatLng(latlng)
         .setContent('<div style="padding:10px; text-align:center; color:#555;">⏳ Daten werden geladen...</div>')
         .openOn(map);
 
@@ -500,7 +535,18 @@ map.on('click', function(e) {
                     <div style="font-size:0.82em; background:#eef5fc; color:#1e6091; padding:3px 10px; border-radius:20px; display:inline-block; font-weight:bold;">🌧️ 7-Tage-Regen: ${regenSumme} mm</div>`;
             }
 
-            // Routing-Buttons je nach aktuellem Status
+            let layerBlock = '';
+            if (layerTreffer.length > 0) {
+                const zeilen = layerTreffer.map(t =>
+                    `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">${t.ikon} <span style="flex:1;font-size:0.88em;">${t.name}</span><span style="font-size:0.78em;color:#888;white-space:nowrap;">${t.art}</span></div>`
+                ).join('');
+                layerBlock = `
+                    <div style="background:#f0fdf6;border-radius:8px;padding:7px 10px;margin-bottom:10px;border-left:3px solid #27ae60;">
+                        <div style="font-weight:700;font-size:0.82em;color:#27ae60;margin-bottom:3px;">🛡️ Aktive Schutzgebiete</div>
+                        ${zeilen}
+                    </div>`;
+            }
+
             const status = window.routingStatus;
             const zwischenstoppBtn = (status === 'route_fertig')
                 ? `<button onclick="window.fuegeZwischenstopp(${latR},${lngR})" style="width:100%;padding:8px;background:#e67e22;color:white;border:none;border-radius:7px;cursor:pointer;font-weight:bold;font-size:0.85em;">➕ Zwischenstopp hier einfügen</button>`
@@ -508,6 +554,7 @@ map.on('click', function(e) {
 
             ladePopup.setContent(`
                 <div style="font-family:'Segoe UI',Tahoma,sans-serif; min-width:240px; padding:4px;">
+                    ${layerBlock}
                     <div style="text-align:center; margin-bottom:10px;">
                         <h4 style="margin:0 0 5px 0; color:#222; font-size:1.1em;">📍 ${ortsName}</h4>
                         ${wetterBlock}
@@ -535,7 +582,9 @@ map.on('click', function(e) {
         .catch(() => {
             ladePopup.setContent('<div style="padding:10px;">❌ Verbindung fehlgeschlagen.</div>');
         });
-});
+}
+
+map.on('click', function(e) { oeffneKlickPopup(e.latlng); });
 
 // === 6. Supabase (Cloud-Datenbank) initialisieren ===
 const supabaseUrl = 'https://htaftyhatzvvdtatmapk.supabase.co';
