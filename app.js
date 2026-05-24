@@ -431,16 +431,27 @@ navigator.geolocation.watchPosition(
 
         if (_ersterStandort) {
             _ersterStandort = false;
+            // Wetter + Höhe
             fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latlng.lat}&longitude=${latlng.lng}&current_weather=true`)
                 .then(r => r.json())
                 .then(function(daten) {
                     if (daten.current_weather) {
-                        const anzeigeFeld = document.getElementById('wetter-anzeige');
-                        if (anzeigeFeld) anzeigeFeld.innerHTML =
-                            `${daten.current_weather.temperature} °C | 🏔️ Höhe: ${daten.elevation ?? '?'} m`;
+                        const el = document.getElementById('wetter-anzeige');
+                        if (el) el.textContent =
+                            `🌤️ ${daten.current_weather.temperature} °C · ⛰️ ${daten.elevation ?? '?'} m`;
                     }
                 })
                 .catch(function(err) { console.error('Wetter:', err); });
+            // Ortsname via Nominatim
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat.toFixed(5)}&lon=${latlng.lng.toFixed(5)}`)
+                .then(r => r.json())
+                .then(function(d) {
+                    const a = d.address || {};
+                    const ort = a.city || a.town || a.village || a.municipality || a.county || '';
+                    const el = document.getElementById('ort-anzeige');
+                    if (el && ort) el.textContent = '📍 ' + ort;
+                })
+                .catch(function() {});
         }
     },
     function(err) { console.warn('GPS-Fehler:', err.message); },
@@ -1752,10 +1763,10 @@ function _aufzeichnungBtnAktualisieren() {
     const btn = document.getElementById('aufzeichnung-btn');
     if (!btn) return;
     if (window._aufzeichnungAktiv) {
-        btn.textContent = '⏺ Läuft…';
+        btn.textContent = 'Läuft…';
         btn.classList.add('aktiv');
     } else {
-        btn.textContent = '⏺ Aufzeichnen';
+        btn.textContent = 'Aufzeichnen';
         btn.classList.remove('aktiv');
     }
 }

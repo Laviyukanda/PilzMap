@@ -27,11 +27,11 @@ body {
     z-index: 100;
 }
 
-/* --- Zeile 1: Logo + Auth --- */
+/* --- Zeile 1: Logo | Wetter-Mitte | Auth --- */
 #header-top {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    justify-content: space-between;
     gap: 10px;
     min-height: 34px;
 }
@@ -42,6 +42,28 @@ body {
     letter-spacing: -0.02em;
     white-space: nowrap;
     text-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+/* Wetter + Ort (Mitte Zeile 1) */
+#header-wetter {
+    text-align: center;
+    line-height: 1.35;
+    overflow: hidden;
+}
+#ort-anzeige {
+    font-size: 0.82em;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.95;
+}
+#wetter-anzeige {
+    font-size: 0.75em;
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Auth-Bereich */
@@ -110,7 +132,7 @@ body {
     max-width: 200px;
 }
 
-/* --- Zeile 2: Aktions-Buttons + Wetter-Chip --- */
+/* --- Zeile 2: gleichmäßige Aktions-Buttons --- */
 #header-actions {
     display: flex;
     align-items: center;
@@ -119,18 +141,20 @@ body {
 
 #header-actions > button { flex: 1; }
 
-/* Wetter-Chip (rechts in Zeile 2) */
-#wetter-chip {
-    font-size: 0.78em;
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.22);
-    border-radius: 20px;
-    padding: 4px 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 160px;
+/* Roter Aufnahme-Punkt auf dem Aufzeichnen-Button */
+#aufzeichnung-btn::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: #ff4040;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
     flex-shrink: 0;
+}
+#aufzeichnung-btn.aktiv::before {
+    animation: dot-puls 1.2s ease-in-out infinite;
 }
 
 #map { flex: 1; min-height: 0; width: 100%; }
@@ -506,14 +530,15 @@ button, a {
     #header { padding: 8px 12px 7px; gap: 6px; }
     #header-titel { font-size: 1.0em; }
 
+    /* Wetter-Mitte auf Handy */
+    #header-wetter { display: none; }   /* bei sehr kleinen Geräten ausblenden */
+    #header-top { grid-template-columns: auto auto; }   /* nur Logo + Login */
+
     /* Login-Inputs kleiner auf Handy */
     #login-container input[type="email"],
-    #login-container input[type="password"] { width: 90px; font-size: 0.75em; padding: 4px 7px; }
+    #login-container input[type="password"] { width: 88px; font-size: 0.75em; padding: 4px 7px; }
     #btn-login, #btn-logout { padding: 4px 10px; font-size: 0.78em; }
     #auth-status { max-width: 130px; font-size: 0.74em; }
-
-    /* Wetter-Chip auf Handy kleiner */
-    #wetter-chip { font-size: 0.72em; padding: 3px 8px; max-width: 120px; }
 
     /* Karte füllt Rest automatisch via flex:1 — kein fix height nötig */
 

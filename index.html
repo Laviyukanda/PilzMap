@@ -11,9 +11,13 @@
 </head>
 <body>
     <div id="header">
-        <!-- Zeile 1: Logo + Auth -->
+        <!-- Zeile 1: Logo | Wetter+Ort (Mitte) | Auth -->
         <div id="header-top">
             <h1 id="header-titel">🍄 Mays Pilz-Hub BW</h1>
+            <div id="header-wetter">
+                <div id="ort-anzeige">📍 GPS…</div>
+                <div id="wetter-anzeige">–</div>
+            </div>
             <div id="login-container">
                 <input type="email"    id="login-email"    placeholder="E-Mail" autocomplete="email" />
                 <input type="password" id="login-password" placeholder="Passwort" autocomplete="current-password" />
@@ -22,12 +26,11 @@
                 <span id="auth-status"></span>
             </div>
         </div>
-        <!-- Zeile 2: Aktions-Buttons + Wetter -->
+        <!-- Zeile 2: Filter (links) | Position (Mitte) | Aufzeichnen (rechts) -->
         <div id="header-actions">
-            <button id="standort-btn"     onclick="window.zentriereAufStandort()" title="Zu meinem Standort">📍 Standort</button>
-            <button id="aufzeichnung-btn" onclick="window.toggleAufzeichnung()">⏺ Aufzeichnen</button>
-            <button id="filter-btn"       onclick="window.toggleFilterPanel()">🔍 Filtern</button>
-            <span id="wetter-chip">🌤️ <span id="wetter-anzeige">GPS…</span></span>
+            <button id="filter-btn"       onclick="window.toggleFilterPanel()">🔍 Filter</button>
+            <button id="standort-btn"     onclick="window.zentriereAufStandort()">📍 Position</button>
+            <button id="aufzeichnung-btn" onclick="window.toggleAufzeichnung()">Aufzeichnen</button>
         </div>
     </div>
     <div id="map"></div>
