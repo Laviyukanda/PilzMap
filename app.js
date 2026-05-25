@@ -318,7 +318,7 @@ fetch('waldschutzgebiete.json')
     .catch(function(fehler) { console.warn('Waldschutzgebiete nicht geladen:', fehler); });
 
 // === 3.4. Boden-pH / Bodenvegetation (BWI 2002, EPSG:31467) ===
-fetch('ph-bodenwerte.json')
+fetch('Straucher und Boden Vegetation.json')
     .then(function(r) { return r.json(); })
     .then(function(phDaten) {
         const gezeigteCells = new Set();
@@ -328,6 +328,7 @@ fetch('ph-bodenwerte.json')
                 return L.latLng(wgs[1], wgs[0]);
             },
             filter: function(feature) {
+                if (feature.properties.bl !== 8) return false; // nur Baden-Württemberg
                 const id = feature.properties.cell_id;
                 if (gezeigteCells.has(id)) return false;
                 gezeigteCells.add(id);
@@ -499,6 +500,31 @@ function holeLayerTrefferAnPunkt(lat, lng) {
     return treffer;
 }
 
+function holeBwiAnPunkt(lat, lng) {
+    if (!map.hasLayer(phBodenLayer)) return null;
+    const pt = turf.point([lng, lat]);
+    let gefunden = null;
+    phBodenLayer.eachLayer(function(sub) {
+        if (gefunden) return;
+        function check(fl) {
+            if (gefunden || !fl.toGeoJSON) return;
+            try {
+                const feat = fl.toGeoJSON();
+                if (feat.geometry && turf.booleanPointInPolygon(pt, feat)) {
+                    const p = feat.properties || {};
+                    gefunden = {
+                        score: (p.sbv01||0)+(p.sbv02||0)+(p.sbv03||0)+(p.sbv04||0),
+                        wald:  p.wald_txt || '',
+                        sbv:   [p.sbv01||0, p.sbv02||0, p.sbv03||0, p.sbv04||0]
+                    };
+                }
+            } catch(_) {}
+        }
+        if (typeof sub.eachLayer === 'function') sub.eachLayer(check); else check(sub);
+    });
+    return gefunden;
+}
+
 function oeffneKlickPopup(latlng) {
     const lat  = latlng.lat;
     const lng  = latlng.lng;
@@ -506,6 +532,7 @@ function oeffneKlickPopup(latlng) {
     const lngR = lng.toFixed(6);
 
     const layerTreffer = holeLayerTrefferAnPunkt(lat, lng);
+    const bwiTreffer   = holeBwiAnPunkt(lat, lng);
 
     const ladePopup = L.popup()
         .setLatLng(latlng)
@@ -548,6 +575,30 @@ function oeffneKlickPopup(latlng) {
                     </div>`;
             }
 
+            let bwiBlock = '';
+            if (bwiTreffer) {
+                const s = bwiTreffer.score;
+                const saureText = s >= 8 ? 'Säurezeiger dominant (pH ~3,5–4)' :
+                                  s >= 6 ? 'Säurezeiger häufig (pH ~4–4,5)'   :
+                                  s >= 4 ? 'Säurezeiger mäßig (pH ~4,5–5)'    :
+                                  s >= 2 ? 'Säurezeiger selten (pH ~5–5,5)'   :
+                                           'kaum Säurezeiger (pH >5,5)';
+                const farbe = s >= 8 ? '#d7191c' : s >= 6 ? '#fdae61' : s >= 4 ? '#c8a000' : s >= 2 ? '#6aaa2a' : '#1a9641';
+                const [s1,s2,s3,s4] = bwiTreffer.sbv;
+                bwiBlock = `
+                    <div style="background:#f5faf5;border-radius:8px;padding:7px 10px;margin-bottom:10px;border-left:3px solid ${farbe};">
+                        <div style="font-weight:700;font-size:0.82em;color:#2d6a2d;margin-bottom:4px;">🌿 Bodenvegetation (BWI 2002)</div>
+                        <div style="font-size:0.86em;font-weight:600;color:#333;margin-bottom:3px;">${saureText}</div>
+                        ${bwiTreffer.wald ? `<div style="font-size:0.77em;color:#888;margin-bottom:4px;">${bwiTreffer.wald}</div>` : ''}
+                        <div style="font-size:0.75em;color:#666;display:flex;flex-wrap:wrap;gap:4px 10px;">
+                            <span>🌾 Drahtschmiele: ${s1}</span>
+                            <span>🫐 Heidelbeere: ${s2}</span>
+                            <span>🔴 Preiselbeere: ${s3}</span>
+                            <span>🌸 Heidekraut: ${s4}</span>
+                        </div>
+                    </div>`;
+            }
+
             const status = window.routingStatus;
             const zwischenstoppBtn = (status === 'route_fertig')
                 ? `<button onclick="window.fuegeZwischenstopp(${latR},${lngR})" style="width:100%;padding:8px;background:#e67e22;color:white;border:none;border-radius:7px;cursor:pointer;font-weight:bold;font-size:0.85em;">➕ Zwischenstopp hier einfügen</button>`
@@ -556,6 +607,7 @@ function oeffneKlickPopup(latlng) {
             ladePopup.setContent(`
                 <div style="font-family:'Segoe UI',Tahoma,sans-serif; min-width:240px; padding:4px;">
                     ${layerBlock}
+                    ${bwiBlock}
                     <div style="text-align:center; margin-bottom:10px;">
                         <h4 style="margin:0 0 5px 0; color:#222; font-size:1.1em;">📍 ${ortsName}</h4>
                         ${wetterBlock}
