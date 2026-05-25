@@ -4,6 +4,8 @@ proj4.defs("EPSG:31467", "+proj=tmerc +lat_0=0 +lon_0=9 +k=1 +x_0=3500000 +y_0=0
 
 // === 1. Karte initialisieren (Startansicht: ganz Baden-Württemberg) ===
 const map = L.map('map').setView([48.65, 9.0], 8);
+// Kachelgröße nach initialem Render neu berechnen (mobiles Layout)
+window.addEventListener('load', function() { map.invalidateSize(); });
 
 // === 2. Basiskarten ===
 const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {

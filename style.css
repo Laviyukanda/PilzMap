@@ -57,7 +57,11 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     opacity: 0.95;
+    cursor: pointer;
+    transition: opacity 0.15s;
 }
+#ort-anzeige:hover  { opacity: 0.7; }
+#ort-anzeige:active { opacity: 0.5; }
 #wetter-anzeige {
     font-size: 0.75em;
     opacity: 0.8;
@@ -557,11 +561,25 @@ button, a {
 
     /* --- Header --- */
     #header { padding: 8px 12px 7px; gap: 6px; }
-    #header-titel { font-size: 1.0em; }
+    #header-titel { font-size: 1.3em; }  /* Emoji etwas größer */
 
-    /* Wetter-Mitte auf Handy */
-    #header-wetter { display: none; }   /* bei sehr kleinen Geräten ausblenden */
-    #header-top { grid-template-columns: auto auto; }   /* nur Logo + Login */
+    /* Nur Emoji anzeigen, Text ausblenden */
+    .titel-text { display: none; }
+
+    /* Standort in der Mitte anzeigen, Wetter-Text ausblenden */
+    #header-top { grid-template-columns: auto 1fr auto; }
+    #header-wetter { display: block; }
+    #wetter-anzeige { display: none; }
+    #ort-anzeige {
+        background: rgba(255,255,255,0.15);
+        border-radius: 14px;
+        padding: 5px 11px;
+        text-align: center;
+        font-size: 0.82em;
+    }
+
+    /* Position-Button auf Mobile entfernen */
+    #standort-btn { display: none; }
 
     /* Login-Inputs kleiner auf Handy */
     #login-container input[type="email"],
@@ -751,6 +769,14 @@ button, a {
 
 @media (max-width: 640px) {
     #layer-panel { width: min(88vw, 310px); }
+}
+
+/* Leaflet: weiße Lücken zwischen Kacheln auf HiDPI/Retina vermeiden */
+.leaflet-tile {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 }
 
 /* LRM-Panel komplett ausblenden (Route wird selbst gezeichnet) */
