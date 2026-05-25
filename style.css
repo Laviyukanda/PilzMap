@@ -8,9 +8,22 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    height: 100dvh;
+    height: 100dvh;     /* JS überschreibt dies via style.height für exakte Höhe */
     overflow: hidden;
 }
+
+/* Hintergrund-Verdunklungen für Filter- und Layer-Panel */
+#filter-panel-backdrop,
+#layer-panel-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.38);
+    z-index: 1499;
+    -webkit-tap-highlight-color: transparent;
+}
+#filter-panel-backdrop.aktiv,
+#layer-panel-backdrop.aktiv { display: block; }
 
 /* ============================================================
    Header – zwei Zeilen

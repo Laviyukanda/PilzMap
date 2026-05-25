@@ -4,8 +4,22 @@ proj4.defs("EPSG:31467", "+proj=tmerc +lat_0=0 +lon_0=9 +k=1 +x_0=3500000 +y_0=0
 
 // === 1. Karte initialisieren (Startansicht: ganz Baden-Württemberg) ===
 const map = L.map('map').setView([48.65, 9.0], 8);
-// Kachelgröße nach initialem Render neu berechnen (mobiles Layout)
-window.addEventListener('load', function() { map.invalidateSize(); });
+
+// Kartenhöhe korrekt halten: body exakt auf sichtbare Fenster-Höhe setzen
+// (verhindert graue Fläche unter der Karte auf Android Chrome)
+(function() {
+    function _syncHoehe() {
+        document.body.style.height = window.innerHeight + 'px';
+        map.invalidateSize();
+    }
+    window.addEventListener('resize', _syncHoehe);
+    window.addEventListener('load',   _syncHoehe);
+    _syncHoehe();
+    if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(function() { map.invalidateSize(); })
+            .observe(document.getElementById('map'));
+    }
+})();
 
 // === 2. Basiskarten ===
 const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -106,7 +120,9 @@ const overlayKarten = {
 // Layer-Control wird durch eigenes Panel ersetzt (siehe #layer-panel in index.html)
 
 window.toggleLayerPanel = function() {
-    document.getElementById('layer-panel').classList.toggle('offen');
+    const offen = document.getElementById('layer-panel').classList.toggle('offen');
+    const bd = document.getElementById('layer-panel-backdrop');
+    if (bd) bd.classList.toggle('aktiv', offen);
 };
 
 const _baseMaps = {};
@@ -1655,6 +1671,8 @@ window.toggleFilterPanel = function() {
     const btn   = document.getElementById('filter-btn');
     const offen = panel.classList.toggle('offen');
     btn.classList.toggle('aktiv', offen);
+    const bd = document.getElementById('filter-panel-backdrop');
+    if (bd) bd.classList.toggle('aktiv', offen);
     if (offen) window.ladeGespeicherteRouten();
 };
 
