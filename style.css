@@ -70,11 +70,14 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     opacity: 0.95;
+}
+
+#header-wetter {
     cursor: pointer;
     transition: opacity 0.15s;
 }
-#ort-anzeige:hover  { opacity: 0.7; }
-#ort-anzeige:active { opacity: 0.5; }
+#header-wetter:hover  { opacity: 0.75; }
+#header-wetter:active { opacity: 0.5; }
 #wetter-anzeige {
     font-size: 0.75em;
     opacity: 0.8;
@@ -579,17 +582,20 @@ button, a {
     /* Nur Emoji anzeigen, Text ausblenden */
     .titel-text { display: none; }
 
-    /* Standort in der Mitte anzeigen, Wetter-Text ausblenden */
+    /* Standort + Wetter in der Mitte als tappbare Pille */
     #header-top { grid-template-columns: auto 1fr auto; }
-    #header-wetter { display: block; }
-    #wetter-anzeige { display: none; }
-    #ort-anzeige {
+    #header-wetter {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         background: rgba(255,255,255,0.15);
         border-radius: 14px;
-        padding: 5px 11px;
+        padding: 4px 10px;
         text-align: center;
-        font-size: 0.82em;
+        overflow: hidden;
     }
+    #ort-anzeige  { font-size: 0.82em; }
+    #wetter-anzeige { display: block; font-size: 0.72em; opacity: 0.88; }
 
     /* Position-Button auf Mobile entfernen */
     #standort-btn { display: none; }

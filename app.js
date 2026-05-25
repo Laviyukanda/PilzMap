@@ -424,6 +424,10 @@ navigator.geolocation.watchPosition(
         } else {
             _standortMarker = L.marker(latlng, { icon: _standortIcon, zIndexOffset: 1000 }).addTo(map);
             _standortKreis  = L.circle(latlng, { radius: accuracy, color: '#2577b4', weight: 1, fillColor: '#2577b4', fillOpacity: 0.12 }).addTo(map);
+            _standortMarker.on('click', function(e) {
+                e.originalEvent.stopPropagation();
+                map.setView(_standortMarker.getLatLng(), Math.max(map.getZoom(), 15));
+            });
         }
 
         if (_ersterStandort) {
@@ -632,7 +636,7 @@ if (logoutBtn) logoutBtn.addEventListener('click', logout);
 _supabase.auth.onAuthStateChange((event, session) => {
     if (session) {
         // Jemand ist eingeloggt!
-        if (statusText) statusText.innerText = `✅ Eingeloggt als ${session.user.email}`;
+        if (statusText) statusText.innerText = `👤 ${session.user.email}`;
         if (loginBtn) loginBtn.style.display = 'none';
         if (emailInput) emailInput.style.display = 'none';
         if (passwordInput) passwordInput.style.display = 'none';
@@ -642,7 +646,7 @@ _supabase.auth.onAuthStateChange((event, session) => {
         ladePilzeAusCloud(); 
     } else {
         // Niemand ist eingeloggt
-        if (statusText) statusText.innerText = "🔒 Bitte einloggen";
+        if (statusText) statusText.innerText = "";
         if (loginBtn) loginBtn.style.display = 'inline-block';
         if (emailInput) emailInput.style.display = 'inline-block';
         if (passwordInput) passwordInput.style.display = 'inline-block';
