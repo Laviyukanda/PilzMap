@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Capacitor / Android build output (generiert von: npx cap sync android)
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/src/main/res/xml/config.xml
+
+# Android Build-Artefakte
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+*.apk
+*.aab
+*.aar
+
+# npm / Node
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db

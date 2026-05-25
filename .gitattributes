@@ -1,0 +1,20 @@
+# Automatische Zeilenenden: LF im Repo, lokale OS-Konvention beim Checkout
+* text=auto
+
+# Dateien die immer LF behalten müssen (Shell-Skripte, Gradle-Wrapper)
+gradlew text eol=lf
+*.sh   text eol=lf
+
+# Binärdateien – niemals konvertieren
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.apk  binary
+*.aab  binary
+*.aar  binary
+*.jar  binary
+*.dex  binary
+*.keystore binary
+*.jks  binary

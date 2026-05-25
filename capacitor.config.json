@@ -1,0 +1,15 @@
+{
+  "appId": "de.pilzhub.app",
+  "appName": "Pilz-Hub BW",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "overlaysWebView": true,
+      "style": "LIGHT",
+      "backgroundColor": "#00000000"
+    }
+  }
+}
