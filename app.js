@@ -565,12 +565,25 @@ function oeffneKlickPopup(latlng) {
 
             let layerBlock = '';
             if (layerTreffer.length > 0) {
-                const zeilen = layerTreffer.map(t =>
-                    `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">${t.ikon} <span style="flex:1;font-size:0.88em;">${t.name}</span><span style="font-size:0.78em;color:#888;white-space:nowrap;">${t.art}</span></div>`
-                ).join('');
+                const _sammelVerboten = new Set(['Naturschutzgebiet', 'Nationalpark', 'Bannwald']);
+                const hatVerbotenes = layerTreffer.some(t => _sammelVerboten.has(t.art));
+                const zeilen = layerTreffer.map(t => {
+                    const verboten = _sammelVerboten.has(t.art);
+                    const rechts = verboten
+                        ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
+                               <span style="font-size:0.78em;color:#c0392b;white-space:nowrap;">${t.art}</span>
+                               <span style="font-size:0.72em;color:#c0392b;white-space:nowrap;">🚫 Pilze sammeln verboten</span>
+                           </div>`
+                        : `<span style="font-size:0.78em;color:#888;white-space:nowrap;">${t.art}</span>`;
+                    return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">${t.ikon} <span style="flex:1;font-size:0.88em;">${t.name}</span>${rechts}</div>`;
+                }).join('');
+                const bgCol     = hatVerbotenes ? '#fff0f0' : '#f0fdf6';
+                const bordCol   = hatVerbotenes ? '#c0392b' : '#27ae60';
+                const kopfColor = hatVerbotenes ? '#c0392b' : '#27ae60';
+                const kopfIkon  = hatVerbotenes ? '🚫' : '🛡️';
                 layerBlock = `
-                    <div style="background:#f0fdf6;border-radius:8px;padding:7px 10px;margin-bottom:10px;border-left:3px solid #27ae60;">
-                        <div style="font-weight:700;font-size:0.82em;color:#27ae60;margin-bottom:3px;">🛡️ Aktive Schutzgebiete</div>
+                    <div style="background:${bgCol};border-radius:8px;padding:7px 10px;margin-bottom:10px;border-left:3px solid ${bordCol};">
+                        <div style="font-weight:700;font-size:0.82em;color:${kopfColor};margin-bottom:3px;">${kopfIkon} Aktive Schutzgebiete</div>
                         ${zeilen}
                     </div>`;
             }
@@ -1619,10 +1632,23 @@ function _nsgBlock(d) {
     if (!d.nsg_anteil) {
         return '<div class="rb-nsg rb-nsg-frei">✅ Kein Schutzgebiet</div>';
     }
+    const _sammelVerboten = new Set(['Naturschutzgebiet', 'Nationalpark', 'Bannwald']);
+    const hatVerbotenes = liste.some(g => _sammelVerboten.has(g.art));
+
     const zeilen = liste.map(function(g) {
-        return `<div class="rb-nsg-eintrag">${g.ikon} ${g.name}<span class="rb-nsg-art">${g.art}</span></div>`;
+        const verboten = _sammelVerboten.has(g.art);
+        const rechts = verboten
+            ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;margin-left:auto;">
+                   <span style="font-size:0.78em;color:#c0392b;white-space:nowrap;">${g.art}</span>
+                   <span style="font-size:0.72em;color:#c0392b;white-space:nowrap;">🚫 Pilze sammeln verboten</span>
+               </div>`
+            : `<span class="rb-nsg-art">${g.art}</span>`;
+        const borderCol = verboten ? '#f5c0c0' : '#d4f0e0';
+        return `<div class="rb-nsg-eintrag" style="border-top-color:${borderCol};">${g.ikon} ${g.name}${rechts}</div>`;
     }).join('');
-    return `<div class="rb-nsg"><div class="rb-nsg-kopf">🌿 ${d.nsg_anteil}% Schutzgebiet</div>${zeilen}</div>`;
+
+    const blockStyle = hatVerbotenes ? ' style="background:#fff0f0;"' : '';
+    return `<div class="rb-nsg"${blockStyle}><div class="rb-nsg-kopf">🌿 ${d.nsg_anteil}% Schutzgebiet</div>${zeilen}</div>`;
 }
 
 // === 9. Das Auto-Feature ===
