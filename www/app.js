@@ -13,16 +13,9 @@ proj4.defs("EPSG:31467", "+proj=tmerc +lat_0=0 +lon_0=9 +k=1 +x_0=3500000 +y_0=0
 // === 1. Karte initialisieren (Startansicht: ganz Baden-Württemberg) ===
 const map = L.map('map').setView([48.65, 9.0], 8);
 
-// Kartenhöhe korrekt halten: body exakt auf sichtbare Fenster-Höhe setzen
-// (verhindert graue Fläche unter der Karte auf Android Chrome)
+// Karte bei Größenänderung neu ausrichten
 (function() {
-    function _syncHoehe() {
-        document.body.style.height = window.innerHeight + 'px';
-        map.invalidateSize();
-    }
-    window.addEventListener('resize', _syncHoehe);
-    window.addEventListener('load',   _syncHoehe);
-    _syncHoehe();
+    window.addEventListener('resize', function() { map.invalidateSize(); });
     if (typeof ResizeObserver !== 'undefined') {
         new ResizeObserver(function() { map.invalidateSize(); })
             .observe(document.getElementById('map'));
@@ -669,13 +662,17 @@ const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 // === 6.0 LOGIN & AUTHENTIFIZIERUNG ========
 // ==========================================
 
-// Holt die HTML-Elemente (die du in der index.html angelegt hast)
+// Login-Modal öffnen/schließen
+window.toggleLoginModal = function() {
+    document.getElementById('login-modal').classList.toggle('offen');
+    document.getElementById('login-modal-backdrop').classList.toggle('offen');
+};
+
 const emailInput = document.getElementById('login-email');
 const passwordInput = document.getElementById('login-password');
 const loginBtn = document.getElementById('btn-login');
 const logoutBtn = document.getElementById('btn-logout');
 const statusText = document.getElementById('auth-status');
-const loginContainer = document.getElementById('login-container');
 
 // Login-Funktion
 async function login() {
@@ -707,23 +704,25 @@ if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
 // --- Magie: Hört auf Login/Logout und merkt sich dich ---
 _supabase.auth.onAuthStateChange((event, session) => {
+    const userBtn = document.getElementById('btn-user');
     if (session) {
-        // Jemand ist eingeloggt!
-        if (statusText) statusText.innerText = `👤 ${session.user.email}`;
+        if (statusText) statusText.innerText = `✅ ${session.user.email}`;
         if (loginBtn) loginBtn.style.display = 'none';
         if (emailInput) emailInput.style.display = 'none';
         if (passwordInput) passwordInput.style.display = 'none';
-        if (logoutBtn) logoutBtn.style.display = 'inline-block';
-        
-        // JETZT erst die Pilze laden!
-        ladePilzeAusCloud(); 
+        if (logoutBtn) logoutBtn.style.display = 'block';
+        if (userBtn) userBtn.classList.add('eingeloggt');
+        // Modal schließen nach Login
+        document.getElementById('login-modal')?.classList.remove('offen');
+        document.getElementById('login-modal-backdrop')?.classList.remove('offen');
+        ladePilzeAusCloud();
     } else {
-        // Niemand ist eingeloggt
         if (statusText) statusText.innerText = "";
-        if (loginBtn) loginBtn.style.display = 'inline-block';
-        if (emailInput) emailInput.style.display = 'inline-block';
-        if (passwordInput) passwordInput.style.display = 'inline-block';
+        if (loginBtn) loginBtn.style.display = 'block';
+        if (emailInput) emailInput.style.display = 'block';
+        if (passwordInput) passwordInput.style.display = 'block';
         if (logoutBtn) logoutBtn.style.display = 'none';
+        if (userBtn) userBtn.classList.remove('eingeloggt');
     }
 });
 
@@ -1959,13 +1958,16 @@ window._aufzeichnungFundeIds = [];
 
 function _aufzeichnungBtnAktualisieren() {
     const btn = document.getElementById('aufzeichnung-btn');
+    const fab = document.getElementById('fab-container');
     if (!btn) return;
     if (window._aufzeichnungAktiv) {
-        btn.textContent = 'Läuft…';
+        btn.innerHTML = '';   // Emoji weg → CSS zeigt weißen Punkt
         btn.classList.add('aktiv');
+        fab?.classList.add('aufzeichnung-aktiv');
     } else {
-        btn.textContent = 'Aufzeichnen';
+        btn.innerHTML = '⏺️';
         btn.classList.remove('aktiv');
+        fab?.classList.remove('aufzeichnung-aktiv');
     }
 }
 
@@ -1999,30 +2001,43 @@ window.starteAufzeichnung = function() {
     window.aktualisiereRoutenBar();
     _aufzeichnungBtnAktualisieren();
 
-    window._aufzeichnungWatchId = navigator.geolocation.watchPosition(
-        function(pos) {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            const alt = pos.coords.altitude || 0;
+    function _verarbeiteGpsPunkt(lat, lng, alt) {
+        if (window._aufzeichnungPunkte.length > 0) {
+            const prev = window._aufzeichnungPunkte[window._aufzeichnungPunkte.length - 1];
+            const distM = turf.distance(
+                turf.point([prev.lng, prev.lat]),
+                turf.point([lng, lat]),
+                { units: 'meters' }
+            );
+            if (distM < 5) return;
+            window._aufzeichnungDistanz += distM;
+        }
+        window._aufzeichnungPunkte.push({ lat, lng, alt });
+        window._aufzeichnungLinie.addLatLng(L.latLng(lat, lng, alt));
+        window.aktualisiereRoutenBar();
+    }
 
-            if (window._aufzeichnungPunkte.length > 0) {
-                const prev = window._aufzeichnungPunkte[window._aufzeichnungPunkte.length - 1];
-                const distM = turf.distance(
-                    turf.point([prev.lng, prev.lat]),
-                    turf.point([lng, lat]),
-                    { units: 'meters' }
+    // Auf Android: nativer Hintergrund-Service (läuft auch im Standby)
+    const LocationBg = window.Capacitor?.Plugins?.LocationBackground;
+    if (LocationBg) {
+        LocationBg.startTracking().catch(err => console.warn('GPS-Service:', err));
+        window._aufzeichnungWatchId = LocationBg.addListener('locationUpdate', function(pos) {
+            _verarbeiteGpsPunkt(pos.lat, pos.lng, pos.alt || 0);
+        });
+    } else {
+        // Fallback für Browser / Web
+        window._aufzeichnungWatchId = navigator.geolocation.watchPosition(
+            function(pos) {
+                _verarbeiteGpsPunkt(
+                    pos.coords.latitude,
+                    pos.coords.longitude,
+                    pos.coords.altitude || 0
                 );
-                if (distM < 10) return; // GPS-Rauschen filtern
-                window._aufzeichnungDistanz += distM;
-            }
-
-            window._aufzeichnungPunkte.push({ lat, lng, alt });
-            window._aufzeichnungLinie.addLatLng(L.latLng(lat, lng, alt));
-            window.aktualisiereRoutenBar();
-        },
-        function(err) { console.warn('GPS-Fehler:', err.message); },
-        { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
-    );
+            },
+            function(err) { console.warn('GPS-Fehler:', err.message); },
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+        );
+    }
 
     // Timer für Zeitanzeige (alle 10 Sek)
     window._aufzeichnungTimer = setInterval(function() {
@@ -2032,7 +2047,15 @@ window.starteAufzeichnung = function() {
 
 window.stoppeAufzeichnung = function() {
     if (window._aufzeichnungWatchId !== null) {
-        navigator.geolocation.clearWatch(window._aufzeichnungWatchId);
+        const LocationBg = window.Capacitor?.Plugins?.LocationBackground;
+        if (LocationBg) {
+            LocationBg.stopTracking().catch(() => {});
+            if (typeof window._aufzeichnungWatchId.remove === 'function') {
+                window._aufzeichnungWatchId.remove();
+            }
+        } else {
+            navigator.geolocation.clearWatch(window._aufzeichnungWatchId);
+        }
         window._aufzeichnungWatchId = null;
     }
     clearInterval(window._aufzeichnungTimer);
@@ -2078,7 +2101,15 @@ window.stoppeAufzeichnung = function() {
 
 window.verwerfAufzeichnung = function() {
     if (window._aufzeichnungWatchId !== null) {
-        navigator.geolocation.clearWatch(window._aufzeichnungWatchId);
+        const LocationBg = window.Capacitor?.Plugins?.LocationBackground;
+        if (LocationBg) {
+            LocationBg.stopTracking().catch(() => {});
+            if (typeof window._aufzeichnungWatchId.remove === 'function') {
+                window._aufzeichnungWatchId.remove();
+            }
+        } else {
+            navigator.geolocation.clearWatch(window._aufzeichnungWatchId);
+        }
         window._aufzeichnungWatchId = null;
     }
     clearInterval(window._aufzeichnungTimer);

@@ -22,6 +22,8 @@ allprojects {
         google()
         mavenCentral()
     }
+    // Build-Ausgabe außerhalb OneDrive, damit OneDrive keine Dateisperren verursacht
+    buildDir = "C:/AndroidBuilds/PilzMap/${project.name}"
 }
 
 task clean(type: Delete) {

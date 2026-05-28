@@ -11,30 +11,40 @@
 </head>
 <body>
     <div id="header">
-        <!-- Zeile 1: Logo | Wetter+Ort (Mitte) | Auth -->
         <div id="header-top">
-            <h1 id="header-titel">🍄<span class="titel-text"> Mays Pilz-Hub BW</span></h1>
+            <h1 id="header-titel">🍄 Pilz-Hub BW</h1>
             <div id="header-wetter" onclick="window.zentriereAufStandort()">
-                <div id="ort-anzeige">📍 GPS…</div>
+                <div id="ort-anzeige">GPS…</div>
                 <div id="wetter-anzeige">–</div>
             </div>
-            <div id="login-container">
-                <input type="email"    id="login-email"    placeholder="E-Mail" autocomplete="email" />
-                <input type="password" id="login-password" placeholder="Passwort" autocomplete="current-password" />
-                <button type="button"  id="btn-login">Einloggen</button>
-                <button type="button"  id="btn-logout" style="display:none;">Abmelden</button>
-                <span id="auth-status"></span>
-            </div>
-        </div>
-        <!-- Zeile 2: Filter | Layer | Position | Aufzeichnen -->
-        <div id="header-actions">
-            <button id="filter-btn"       onclick="window.toggleFilterPanel()">🔍 Filter</button>
-            <button id="standort-btn"     onclick="window.zentriereAufStandort()">📍 Position</button>
-            <button id="aufzeichnung-btn" onclick="window.toggleAufzeichnung()">Aufzeichnen</button>
-            <button id="layer-btn"        onclick="window.toggleLayerPanel()">🗺️ Layer</button>
+            <button id="btn-user" onclick="window.toggleLoginModal()" title="Login">👤</button>
         </div>
     </div>
     <div id="map"></div>
+
+    <!-- Login-Modal -->
+    <div id="login-modal-backdrop" onclick="window.toggleLoginModal()"></div>
+    <div id="login-modal">
+        <div id="login-modal-kopf">
+            <span>👤 Konto</span>
+            <button onclick="window.toggleLoginModal()" title="Schließen">✕</button>
+        </div>
+        <div id="login-modal-inhalt">
+            <input type="email"    id="login-email"    placeholder="E-Mail" autocomplete="email" />
+            <input type="password" id="login-password" placeholder="Passwort" autocomplete="current-password" />
+            <button type="button"  id="btn-login">Einloggen</button>
+            <button type="button"  id="btn-logout" style="display:none;">Abmelden</button>
+            <span id="auth-status"></span>
+        </div>
+    </div>
+
+    <!-- Floating Action Buttons -->
+    <div id="fab-container">
+        <button id="layer-btn"        class="fab" onclick="window.toggleLayerPanel()"   title="Layer">🗺️</button>
+        <button id="filter-btn"       class="fab" onclick="window.toggleFilterPanel()"  title="Filter">🔍</button>
+        <button id="aufzeichnung-btn" class="fab" onclick="window.toggleAufzeichnung()" title="Aufzeichnen">⏺️</button>
+        <button id="standort-btn"     class="fab fab-primary" onclick="window.zentriereAufStandort()" title="Position">📍</button>
+    </div>
 
     <div id="routen-bar">
         <div id="routen-bar-inhalt"></div>

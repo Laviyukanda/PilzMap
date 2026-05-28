@@ -4,11 +4,8 @@
 
 body {
     font-family: sans-serif;
-    background: #f5f5f5;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    height: 100dvh;     /* JS überschreibt dies via style.height für exakte Höhe */
+    position: fixed;
+    inset: 0;
     overflow: hidden;
 }
 
@@ -26,35 +23,41 @@ body {
 #layer-panel-backdrop.aktiv { display: block; }
 
 /* ============================================================
-   Header – zwei Zeilen
+   Header – Frosted Glass, überlagert die Karte
    ============================================================ */
 #header {
-    background: linear-gradient(135deg, #2ca25f 0%, #1a7a45 100%);
-    color: white;
-    padding: calc(env(safe-area-inset-top) + 9px) calc(env(safe-area-inset-right) + 16px) 8px calc(env(safe-area-inset-left) + 16px);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(env(safe-area-inset-top) + 76px);
+    background: rgba(255,255,255,0.28);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    backdrop-filter: blur(24px) saturate(160%);
+    border-bottom: 1px solid rgba(255,255,255,0.25);
+    padding: env(safe-area-inset-top) calc(env(safe-area-inset-right) + 16px) 0 calc(env(safe-area-inset-left) + 16px);
     display: flex;
     flex-direction: column;
-    gap: 7px;
-    flex-shrink: 0;
-    z-index: 100;
+    justify-content: flex-end;
+    z-index: 200;
+    color: #1a1a1a;
 }
 
-/* --- Zeile 1: Logo | Wetter-Mitte | Auth --- */
+/* --- Zeile 1: Logo | Wetter-Mitte | User-Icon --- */
 #header-top {
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 10px;
-    min-height: 34px;
+    padding: 10px 0 12px;
 }
 
 #header-titel {
-    font-size: 1.15em;
+    font-size: 1.1em;
     font-weight: 700;
     letter-spacing: -0.02em;
     white-space: nowrap;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    color: #2ca25f;
 }
 
 /* Wetter + Ort (Mitte Zeile 1) */
@@ -69,7 +72,7 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    opacity: 0.95;
+    color: #333;
 }
 
 #header-wetter {
@@ -80,7 +83,7 @@ body {
 #header-wetter:active { opacity: 0.5; }
 #wetter-anzeige {
     font-size: 0.75em;
-    opacity: 0.8;
+    color: #666;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -152,54 +155,131 @@ body {
     max-width: 200px;
 }
 
-/* --- Zeile 2: gleichmäßige Aktions-Buttons --- */
-#header-actions {
+/* --- User-Icon Button --- */
+#btn-user {
+    background: rgba(44,162,95,0.12);
+    border: 1.5px solid rgba(44,162,95,0.3);
+    color: #2ca25f;
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    font-size: 1.1em;
+    cursor: pointer;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    transition: background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+#btn-user:hover  { background: rgba(44,162,95,0.2); }
+#btn-user:active { background: rgba(44,162,95,0.3); }
+#btn-user.eingeloggt { background: #2ca25f; color: white; border-color: #2ca25f; }
+
+/* --- Floating Action Buttons --- */
+#fab-container {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom) + 24px);
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 1100;
+    align-items: center;
 }
 
-#header-actions > button { flex: 1; }
-
-/* Roter Aufnahme-Punkt auf dem Aufzeichnen-Button */
-#aufzeichnung-btn::before {
-    content: '';
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    background: #ff4040;
+.fab {
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    margin-right: 6px;
-    vertical-align: middle;
-    flex-shrink: 0;
+    background: white;
+    border: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.1);
+    font-size: 1.35em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
-#aufzeichnung-btn.aktiv::before {
-    animation: dot-puls 1.2s ease-in-out infinite;
+.fab:active {
+    transform: scale(0.93);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
-#map { flex: 1; min-height: 0; width: 100%; }
+.fab-primary {
+    width: 58px;
+    height: 58px;
+    background: #2ca25f;
+    font-size: 1.5em;
+    box-shadow: 0 6px 20px rgba(44,162,95,0.45);
+}
+.fab-primary:active { box-shadow: 0 3px 10px rgba(44,162,95,0.35); }
 
-/* === Routen-Karte (rechts) === */
+/* Aufzeichnen-Button aktiv: weißer Puls-Punkt, Rest verschwindet */
+#aufzeichnung-btn.aktiv {
+    background: #e74c3c;
+    box-shadow: 0 6px 20px rgba(231,76,60,0.45);
+    position: relative;
+    overflow: visible;
+    font-size: 0;          /* emoji ausblenden */
+    animation: none;
+}
+#aufzeichnung-btn.aktiv::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: white;
+    animation: aufz-puls 2s ease-out infinite;
+}
+@keyframes aufz-puls {
+    0%   { transform: scale(1);    opacity: 1; }
+    50%  { transform: scale(0.55); opacity: 0.6; }
+    100% { transform: scale(1);    opacity: 1; }
+}
+
+#fab-container .fab {
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 0.25s ease,
+                background 0.2s ease,
+                box-shadow 0.2s ease,
+                font-size 0.2s ease;
+}
+
+
+#map {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* === Routen-Panel (unten links, neben FABs) === */
 #routen-bar {
     position: fixed;
-    bottom: 24px;
-    right: 16px;
-    width: 265px;
+    bottom: calc(env(safe-area-inset-bottom) + 24px);
+    left: 16px;
+    right: 90px;
     background: white;
-    border-radius: 16px;
+    border-radius: 20px;
     border-left: 5px solid #2ca25f;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08);
-    padding: 15px 16px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
+    padding: 14px 16px;
     z-index: 2000;
     font-family: 'Segoe UI', Tahoma, sans-serif;
-    transform: translateX(calc(100% + 24px));
+    transform: translateY(calc(100% + 40px));
     opacity: 0;
     pointer-events: none;
     transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
                 opacity   0.3s ease;
 }
 #routen-bar.aktiv {
-    transform: translateX(0);
+    transform: translateY(0);
     opacity: 1;
     pointer-events: auto;
 }
@@ -352,40 +432,111 @@ body {
     100% { left: 100%; }
 }
 
-/* === Header-Aktions-Buttons (Standort, Aufzeichnen, Filtern) === */
-#standort-btn, #aufzeichnung-btn, #filter-btn, #layer-btn {
-    background: rgba(255,255,255,0.15);
-    color: white;
-    border: 1.5px solid rgba(255,255,255,0.35);
-    border-radius: 20px;
-    padding: 6px 10px;
-    font-size: 0.84em;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s;
-    white-space: nowrap;
-    touch-action: manipulation;
+/* === Login-Modal === */
+#login-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.38);
+    z-index: 3500;
     -webkit-tap-highlight-color: transparent;
+}
+#login-modal-backdrop.offen { display: block; }
+
+#login-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -48%) scale(0.95);
+    width: min(340px, calc(100vw - 32px));
+    background: white;
+    border-radius: 18px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    z-index: 3600;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+}
+#login-modal.offen {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+}
+#login-modal-kopf {
+    background: linear-gradient(135deg, #2ca25f, #1a7a45);
+    color: white;
+    padding: 15px 18px;
+    border-radius: 18px 18px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    font-size: 1.05em;
+}
+#login-modal-kopf button {
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    font-size: 1.2em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#login-modal-kopf button:hover { background: rgba(255,255,255,0.25); }
+#login-modal-inhalt {
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+#login-modal-inhalt input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.95em;
+    font-family: inherit;
+    box-sizing: border-box;
+    outline: none;
+}
+#login-modal-inhalt input:focus {
+    border-color: #2ca25f;
+    box-shadow: 0 0 0 2px rgba(44,162,95,0.15);
+}
+#login-modal-inhalt #btn-login {
+    background: #2ca25f;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 11px;
+    font-size: 0.95em;
+    font-weight: bold;
+    cursor: pointer;
+}
+#login-modal-inhalt #btn-logout {
+    background: rgba(231,76,60,0.1);
+    border: 1.5px solid rgba(231,76,60,0.4);
+    color: #e74c3c;
+    border-radius: 8px;
+    padding: 11px;
+    font-size: 0.95em;
+    font-weight: bold;
+    cursor: pointer;
+}
+#auth-status {
+    font-size: 0.85em;
+    color: #555;
     text-align: center;
 }
-#standort-btn:hover,
-#aufzeichnung-btn:hover,
-#filter-btn:hover,
-#layer-btn:hover      { background: rgba(255,255,255,0.27); }
 
-#standort-btn:active,
-#aufzeichnung-btn:active,
-#filter-btn:active,
-#layer-btn:active     { background: rgba(255,255,255,0.38); }
-
-#aufzeichnung-btn.aktiv {
-    background: rgba(231,76,60,0.72);
-    border-color: #ff7b7b;
-    animation: btn-puls 1.4s ease-in-out infinite;
-}
 @keyframes btn-puls {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.5); }
-    50%       { box-shadow: 0 0 0 6px rgba(231,76,60,0); }
+    0%, 100% { box-shadow: 0 6px 20px rgba(231,76,60,0.45), 0 0 0 0 rgba(231,76,60,0.5); }
+    50%       { box-shadow: 0 6px 20px rgba(231,76,60,0.45), 0 0 0 8px rgba(231,76,60,0); }
 }
 
 /* Pulsierender Dot in der Routen-Karte */
@@ -403,7 +554,7 @@ body {
     50%       { opacity: 0.35; transform: scale(0.75); }
 }
 
-#filter-btn.aktiv { background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.6); }
+#filter-btn.aktiv { background: #2ca25f; box-shadow: 0 4px 16px rgba(44,162,95,0.4); }
 
 /* === Filter-Panel === */
 #filter-panel {
@@ -427,10 +578,11 @@ body {
 #filter-panel-kopf {
     background: linear-gradient(135deg, #2ca25f, #1a7a45);
     color: white;
-    padding: 15px 18px;
+    min-height: calc(env(safe-area-inset-top) + 64px);
+    padding: 0 18px 15px;
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-end;
     font-weight: bold;
     font-size: 1.05em;
     flex-shrink: 0;
@@ -599,8 +751,7 @@ button, a {
     #ort-anzeige  { font-size: 0.82em; }
     #wetter-anzeige { display: block; font-size: 0.72em; opacity: 0.88; }
 
-    /* Position-Button auf Mobile entfernen */
-    #standort-btn { display: none; }
+    /* Position-Button bleibt in der Bottom-Bar sichtbar */
 
     /* Login-Inputs kleiner auf Handy */
     #login-container input[type="email"],
@@ -615,27 +766,7 @@ button, a {
     #filter-panel-kopf { padding: 13px 16px; }
     .filter-sektion { padding: 14px 16px; }
 
-    /* --- Routen-Karte → Bottom Sheet --- */
-    #routen-bar {
-        left: 0;
-        right: 0;
-        bottom: 0;
-        width: 100%;
-        border-radius: 20px 20px 0 0;
-        border-left: none;
-        border-top: 5px solid #2ca25f;
-        padding: 16px calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 20px) calc(env(safe-area-inset-left) + 16px);
-        transform: translateY(calc(100% + 6px));
-    }
-    #routen-bar.aktiv             { transform: translateY(0); }
-    #routen-bar.status-start        { border-top-color: #e67e22; }
-    #routen-bar.status-berechnung   { border-top-color: #3498db; }
-    #routen-bar.status-fertig       { border-top-color: #2ca25f; }
-    #routen-bar.status-gespeichert  { border-top-color: #8e44ad; }
-    #routen-bar.status-aufzeichnung        { border-top-color: #e74c3c; }
-    #routen-bar.status-aufzeichnung-fertig { border-top-color: #f39c12; }
-
-    /* Stats-Grid: 4 Felder in einer Zeile (Bottom Sheet ist breit genug) */
+    /* Stats-Grid auf Mobile: 4 Felder in einer Zeile */
     .rb-stats-grid {
         grid-template-columns: repeat(4, 1fr);
         gap: 6px;
@@ -704,8 +835,9 @@ button, a {
 #layer-panel-kopf {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
+    align-items: flex-end;
+    min-height: calc(env(safe-area-inset-top) + 64px);
+    padding: 0 16px 12px;
     background: linear-gradient(135deg, #2ca25f 0%, #1a7a45 100%);
     color: white;
     font-weight: 700;
@@ -716,13 +848,15 @@ button, a {
     background: rgba(255,255,255,0.2);
     border: none;
     color: white;
-    width: 30px; height: 30px;
+    width: 36px; height: 36px;
     border-radius: 50%;
     cursor: pointer;
-    font-size: 1em;
-    line-height: 30px;
-    text-align: center;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 0;
+    flex-shrink: 0;
 }
 #layer-panel-kopf button:hover { background: rgba(255,255,255,0.35); }
 
@@ -792,6 +926,11 @@ button, a {
 
 @media (max-width: 640px) {
     #layer-panel { width: min(88vw, 310px); }
+}
+
+/* Leaflet-Controls unter den Header schieben */
+.leaflet-top {
+    top: calc(env(safe-area-inset-top) + 88px) !important;
 }
 
 /* Leaflet: weiße Lücken zwischen Kacheln auf HiDPI/Retina vermeiden */
