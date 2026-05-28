@@ -11,6 +11,7 @@ android/app/src/main/res/xml/config.xml
 android/.gradle/
 android/build/
 android/app/build/
+android/app/release/
 android/capacitor-cordova-android-plugins/build/
 *.apk
 *.aab
