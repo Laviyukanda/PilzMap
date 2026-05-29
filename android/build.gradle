@@ -22,10 +22,6 @@ allprojects {
         google()
         mavenCentral()
     }
-    // Nur auf Windows: Build-Ausgabe außerhalb OneDrive (verhindert Dateisperren)
-    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
-        buildDir = "C:/AndroidBuilds/PilzMap/${project.name}"
-    }
 }
 
 task clean(type: Delete) {
