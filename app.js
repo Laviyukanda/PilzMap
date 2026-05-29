@@ -1852,9 +1852,16 @@ window.ladeGespeicherteRouten = async function() {
     const liste = document.getElementById('routen-liste-panel');
     liste.innerHTML = '<span style="color:#aaa; font-size:0.88em;">⏳ Wird geladen…</span>';
 
+    const { data: { session } } = await _supabase.auth.getSession();
+    if (!session) {
+        liste.innerHTML = '<span style="color:#aaa; font-size:0.88em;">Bitte einloggen um Routen zu sehen.</span>';
+        return;
+    }
+
     const { data, error } = await _supabase
         .from('wanderrouten')
         .select('id, name, distanz_km, hoehenmeter_auf, hoehenmeter_ab, anteil_nsg_prozent')
+        .eq('user_id', session.user.id)
         .order('id', { ascending: false });
 
     if (error || !data || !data.length) {
@@ -2087,13 +2094,28 @@ window.verwerfAufzeichnung = function() {
 
 window.loescheGespeicherteRoute = async function(id) {
     if (!confirm('Möchtest du diese Route wirklich löschen?')) return;
+
+    const btn = document.querySelector(`#re-${id} .btn-loeschen-route`);
+    if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+
     const { error } = await _supabase.from('wanderrouten').delete().eq('id', id);
-    if (!error) {
-        const eintrag = document.getElementById(`re-${id}`);
-        if (eintrag) eintrag.remove();
-        if (window._gespeicherteRouteLinie) {
-            map.removeLayer(window._gespeicherteRouteLinie);
-            window._gespeicherteRouteLinie = null;
-        }
+
+    if (error) {
+        if (btn) { btn.textContent = '🗑️ Löschen'; btn.disabled = false; }
+        alert('❌ Löschen fehlgeschlagen: ' + error.message);
+        return;
     }
+
+    if (window._gespeicherteRouteLinie) {
+        map.removeLayer(window._gespeicherteRouteLinie);
+        window._gespeicherteRouteLinie = null;
+    }
+    if (window.routingStatus === 'gespeicherte_route') {
+        window.angezeigteTourDaten = null;
+        window.routingStatus = 'leer';
+        window.aktualisiereRoutenBar();
+    }
+
+    // Liste immer neu aus der DB laden – so sieht man den echten Stand
+    await window.ladeGespeicherteRouten();
 };
