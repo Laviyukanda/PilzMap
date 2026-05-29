@@ -22,6 +22,10 @@ allprojects {
         google()
         mavenCentral()
     }
+    // Build-Output außerhalb OneDrive – verhindert AccessDeniedException durch OneDrive-Sync
+    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        buildDir = "C:/AndroidBuilds/PilzMap/${project.name}"
+    }
 }
 
 task clean(type: Delete) {
