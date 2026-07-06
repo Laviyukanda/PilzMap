@@ -12,10 +12,14 @@ android/.gradle/
 android/build/
 android/app/build/
 android/app/release/
+android/app/debug/
 android/capacitor-cordova-android-plugins/build/
 *.apk
 *.aab
 *.aar
+
+# Gradle Cache (falls versehentlich im falschen Verzeichnis erzeugt)
+**/.gradle/
 
 # npm / Node
 package-lock.json
